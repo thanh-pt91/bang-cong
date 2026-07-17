@@ -29,6 +29,7 @@
   }
 
   *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  button{touch-action:manipulation;}
   html,body{
     margin:0; padding:0; height:100%;
     background:var(--bg);
@@ -161,6 +162,7 @@
     font-size:19px; font-weight:600; padding:14px 0; color:var(--ink);
   }
   .numpad button:active{background:#EEE1DA;}
+  .numpad button{touch-action:manipulation; user-select:none; -webkit-user-select:none;}
   .numpad button.zero3{font-size:15px;}
   .numpad button.back{color:var(--danger); font-size:16px;}
   .addbtn{
@@ -169,7 +171,7 @@
   }
   .addbtn:disabled{background:#E3D3CE; color:#fff;}
   .addbtn:active:not(:disabled){background:var(--rose-deep);}
-  .entry-actions{display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-bottom:14px;}
+  .entry-actions{display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-top:20px; margin-bottom:14px;}
   .entry-actions button{border:none; border-radius:14px; padding:13px 8px; font-size:13.5px; font-weight:700;}
   .entry-actions button:disabled{opacity:.48;}
   .queue-btn{background:#F1E7E1; color:var(--rose-deep);}
@@ -205,14 +207,15 @@
   .visit-entry-total .amount{font-family:'Fraunces',serif; font-size:15px; font-weight:600;}
   .visit-entry-total .commission{font-size:10.5px; color:var(--rose-deep); margin-top:2px;}
   .visit-entry-delete{width:28px; height:28px; flex-shrink:0; border:none; border-radius:50%; background:#F3E7E3; color:var(--danger);}
-  .visit-service-row{display:flex; align-items:center; gap:9px; padding-top:10px;}
-  .visit-service-row .dot{width:8px; height:8px; border-radius:50%; flex-shrink:0;}
+  .visit-service-row{display:flex; align-items:center; gap:8px; margin-left:18px; padding:9px 0 0 11px; border-left:2px solid var(--line);}
+  .visit-service-row .dot{width:7px; height:7px; border-radius:50%; flex-shrink:0;}
   .visit-service-row .dot.tiem{background:var(--tiem);}
   .visit-service-row .dot.may{background:var(--may);}
   .visit-service-info{flex:1;}
-  .visit-service-name{font-size:12.5px; font-weight:600;}
-  .visit-service-com{font-size:10.5px; color:var(--ink-soft);}
-  .visit-service-amount{font-family:'Fraunces',serif; font-size:13.5px; font-weight:600;}
+  .visit-service-name{font-size:11.5px; font-weight:600; color:var(--ink-soft);}
+  .visit-service-com{font-size:9.5px; color:var(--ink-soft); margin-top:1px;}
+  .visit-service-amount{font-family:'Fraunces',serif; font-size:12.5px; font-weight:600;}
+  .visit-service-row .edit{width:25px; height:25px; font-size:11px;}
 
   /* ---- Summary strip ---- */
   .summary{
@@ -984,16 +987,31 @@ function jumpStatsDate(value){
 
 function selectType(t){ pendingType=t; render(); }
 
+function updateAmountEntryUI(){
+  const amount=pendingDigits ? parseInt(pendingDigits,10) : 0;
+  const valueEl=document.querySelector('.amount-display .val');
+  const commissionEl=document.querySelector('.amount-display .commission');
+  const queueButton=document.querySelector('.queue-btn');
+  const saveButton=document.querySelector('.save-now-btn');
+  if(valueEl){
+    valueEl.textContent=amount>0 ? fmtVND(amount) : '0 đ';
+    valueEl.classList.toggle('placeholder',amount<=0);
+  }
+  if(commissionEl) commissionEl.innerHTML=amount>0 ? 'Hoa hồng dự kiến: '+fmtVND(amount*RATES[pendingType]) : '&nbsp;';
+  if(queueButton) queueButton.disabled=amount<=0;
+  if(saveButton) saveButton.disabled=amount<=0 && pendingServices.length===0;
+}
+
 function numTap(v){
   if(pendingDigits==='' && v==='0') return;
   if(pendingDigits.length>=12) return;
   pendingDigits += v;
   pendingDigits = pendingDigits.replace(/^0+(?=\d)/,'');
-  render();
+  updateAmountEntryUI();
 }
 function numBack(){
   pendingDigits = pendingDigits.slice(0,-1);
-  render();
+  updateAmountEntryUI();
 }
 
 async function addEntryLegacy(){
