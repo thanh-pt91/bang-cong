@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Bảng Công</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root{
+    --bg: #FBF6F3;
+    --card: #FFFFFF;
+    --line: #EFE4DE;
+    --ink: #2E2521;
+    --ink-soft: #8C7E78;
+    --rose: #B3697A;
+    --rose-deep: #9A4F60;
+    --tiem: #5E85A0;
+    --tiem-bg: #E8EFF3;
+    --may: #C08247;
+    --may-bg: #F7E9DA;
+    --danger: #C25B4E;
+    --shadow: 0 2px 14px rgba(46,37,33,0.06);
+  }
+
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    overscroll-behavior:none;
+  }
+  .display{font-family:'Fraunces', serif;}
+  .tnum{font-variant-numeric: tabular-nums;}
+
+  #app{
+    max-width:480px; margin:0 auto;
+    min-height:100vh;
+    display:flex; flex-direction:column;
+    padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  }
+
+  header.top{
+    padding: calc(18px + env(safe-area-inset-top)) 20px 14px;
+    display:flex; align-items:baseline; justify-content:space-between;
+  }
+  header.top .title{
+    font-family:'Fraunces', serif;
+    font-size:22px; font-weight:600; letter-spacing:0.2px;
+  }
+  header.top .sub{
+    font-size:12px; color:var(--ink-soft);
+  }
+
+  main{flex:1; padding: 0 16px 24px;}
+
+  /* ---- Date nav ---- */
+  .datebar{
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--card); border-radius:16px;
+    padding:10px 8px; margin-bottom:16px;
+    box-shadow:var(--shadow);
+  }
+  .datebar button.nav{
+    width:38px; height:38px; border-radius:10px; border:none;
+    background:transparent; color:var(--rose-deep);
+    font-size:18px; display:flex; align-items:center; justify-content:center;
+  }
+  .datebar button.nav:active{background:var(--tiem-bg);}
+  .datebar .label{
+    flex:1; text-align:center; font-size:15px; font-weight:600;
+    display:flex; flex-direction:column; align-items:center; gap:1px;
+    position:relative;
+  }
+  .datebar .label .wd{font-size:11px; color:var(--ink-soft); font-weight:500;}
+  .datebar input[type=date]{
+    position:absolute; opacity:0; inset:0; width:100%; height:100%; border:none;
+  }
+
+  /* ---- Segmented control ---- */
+  .segmented{
+    display:flex; background:#F1E7E1; border-radius:12px; padding:3px;
+    margin-bottom:16px;
+  }
+  .segmented button{
+    flex:1; border:none; background:transparent; padding:9px 0;
+    font-size:13px; font-weight:600; color:var(--ink-soft); border-radius:9px;
+  }
+  .segmented button.active{background:var(--card); color:var(--rose-deep); box-shadow:var(--shadow);}
+
+  /* ---- Type toggle ---- */
+  .typetoggle{display:flex; gap:10px; margin-bottom:14px;}
+  .typetoggle button{
+    flex:1; border-radius:16px; padding:14px 10px; border:1.5px solid var(--line);
+    background:var(--card); text-align:left; position:relative;
+  }
+  .typetoggle button .dot{
+    width:9px; height:9px; border-radius:50%; display:inline-block; margin-right:6px;
+  }
+  .typetoggle button .name{font-size:14px; font-weight:600;}
+  .typetoggle button .rate{font-size:11px; color:var(--ink-soft); margin-top:2px;}
+  .typetoggle button.sel-tiem{border-color:var(--tiem); background:var(--tiem-bg);}
+  .typetoggle button.sel-may{border-color:var(--may); background:var(--may-bg);}
+  .typetoggle .dot.tiem{background:var(--tiem);}
+  .typetoggle .dot.may{background:var(--may);}
+
+  .customer-fields{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;}
+  .customer-field{background:var(--card); border:1.5px solid var(--line); border-radius:14px; padding:9px 12px 8px;}
+  .customer-field:focus-within{border-color:var(--rose);}
+  .customer-field label{display:block; font-size:10.5px; color:var(--ink-soft); margin-bottom:3px;}
+  .customer-field input{width:100%; border:none; outline:none; background:transparent; color:var(--ink); font:600 13.5px 'Inter',sans-serif; padding:0;}
+  .customer-field input::placeholder{color:#CBBEB8; font-weight:500;}
+
+  /* ---- Amount entry card ---- */
+  .entrycard{
+    background:var(--card); border-radius:20px; padding:18px 18px 8px;
+    box-shadow:var(--shadow); margin-bottom:16px;
+  }
+  .amount-display{
+    text-align:right; padding: 6px 4px 14px;
+  }
+  .amount-display .val{
+    font-family:'Fraunces', serif; font-size:34px; font-weight:600;
+    color:var(--ink);
+  }
+  .amount-display .val.placeholder{color:#CBBEB8;}
+  .amount-display .commission{
+    font-size:12.5px; color:var(--rose-deep); font-weight:600; margin-top:2px;
+  }
+  .numpad{
+    display:grid; grid-template-columns: repeat(3,1fr); gap:8px; margin-bottom:12px;
+  }
+  .numpad button{
+    border:none; background:#F7F1ED; border-radius:12px;
+    font-size:19px; font-weight:600; padding:14px 0; color:var(--ink);
+  }
+  .numpad button:active{background:#EEE1DA;}
+  .numpad button.zero3{font-size:15px;}
+  .numpad button.back{color:var(--danger); font-size:16px;}
+  .addbtn{
+    width:100%; border:none; border-radius:14px; padding:14px 0; margin-bottom:14px;
+    background:var(--rose); color:#fff; font-size:15px; font-weight:700;
+  }
+  .addbtn:disabled{background:#E3D3CE; color:#fff;}
+  .addbtn:active:not(:disabled){background:var(--rose-deep);}
+
+  /* ---- Summary strip ---- */
+  .summary{
+    display:flex; gap:10px; margin-bottom:16px;
+  }
+  .summary .box{
+    flex:1; background:var(--card); border-radius:16px; padding:14px;
+    box-shadow:var(--shadow);
+  }
+  .summary .box .k{font-size:11px; color:var(--ink-soft); margin-bottom:4px;}
+  .summary .box .v{font-family:'Fraunces', serif; font-size:19px; font-weight:600;}
+  .summary .box.hi .v{color:var(--rose-deep);}
+
+  /* ---- List ---- */
+  .listtitle{font-size:12.5px; font-weight:700; color:var(--ink-soft); margin: 6px 2px 8px; text-transform:uppercase; letter-spacing:0.4px;}
+  .entry-row{
+    background:var(--card); border-radius:14px; padding:12px 14px;
+    display:flex; align-items:center; gap:10px; margin-bottom:8px;
+    box-shadow:var(--shadow);
+  }
+  .entry-row .dot{width:8px; height:8px; border-radius:50%; flex-shrink:0;}
+  .entry-row .dot.tiem{background:var(--tiem);}
+  .entry-row .dot.may{background:var(--may);}
+  .entry-row .info{flex:1;}
+  .entry-row .info .t{font-size:13.5px; font-weight:600;}
+  .entry-row .info .c{font-size:11.5px; color:var(--rose-deep);}
+  .entry-row .info .customer{font-size:11.5px; color:var(--ink-soft); margin-top:2px;}
+  .entry-row .amt{font-family:'Fraunces', serif; font-size:15px; font-weight:600;}
+  .entry-row .edit{width:28px; height:28px; border-radius:50%; border:none; background:var(--tiem-bg); color:var(--tiem); font-size:13px; display:flex; align-items:center; justify-content:center; margin-left:2px;}
+  .entry-row .del{
+    width:26px; height:26px; border-radius:50%; border:none; background:#F3E7E3;
+    color:var(--danger); font-size:13px; display:flex; align-items:center; justify-content:center;
+    margin-left:2px;
+  }
+  .empty{
+    text-align:center; padding:40px 10px; color:var(--ink-soft); font-size:13.5px;
+  }
+  .empty .ic{font-size:26px; margin-bottom:8px;}
+
+  /* ---- Stats period nav ---- */
+  .periodbar{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:16px; padding: 0 2px;
+  }
+  .periodbar button{
+    width:34px; height:34px; border-radius:10px; border:none; background:var(--card);
+    box-shadow:var(--shadow); color:var(--rose-deep); font-size:16px;
+  }
+  .periodbar .plabel{font-size:14px; font-weight:700; text-align:center;}
+  .periodbar .plabel .sm{display:block; font-size:11px; font-weight:500; color:var(--ink-soft); margin-top:1px;}
+
+  /* ---- Donut ---- */
+  .donutwrap{
+    background:var(--card); border-radius:20px; padding:22px; margin-bottom:16px;
+    box-shadow:var(--shadow); display:flex; align-items:center; gap:20px;
+  }
+  .donutwrap svg{flex-shrink:0;}
+  .donut-center-label{font-size:10.5px; color:var(--ink-soft); text-align:center;}
+  .donut-center-val{font-family:'Fraunces', serif; font-size:16px; font-weight:600; text-align:center;}
+  .legend{flex:1;}
+  .legend .row{display:flex; align-items:center; gap:8px; margin-bottom:10px;}
+  .legend .row:last-child{margin-bottom:0;}
+  .legend .sw{width:10px; height:10px; border-radius:3px; flex-shrink:0;}
+  .legend .sw.tiem{background:var(--tiem);}
+  .legend .sw.may{background:var(--may);}
+  .legend .txt .n{font-size:12.5px; font-weight:600;}
+  .legend .txt .v{font-size:12px; color:var(--ink-soft);}
+
+  .breakdown{margin-bottom:8px;}
+  .bd-row{
+    background:var(--card); border-radius:16px; padding:14px 16px; margin-bottom:10px;
+    box-shadow:var(--shadow);
+  }
+  .bd-row .hd{display:flex; align-items:center; justify-content:between; gap:8px; margin-bottom:8px;}
+  .bd-row .hd .name{font-size:13.5px; font-weight:700; flex:1;}
+  .bd-row .hd .rate{font-size:11px; color:var(--ink-soft); background:#F3ECE7; padding:2px 8px; border-radius:20px;}
+  .bd-row .stats{display:flex; justify-content:space-between;}
+  .bd-row .stats .c{}
+  .bd-row .stats .c .k{font-size:10.5px; color:var(--ink-soft);}
+  .bd-row .stats .c .v{font-family:'Fraunces', serif; font-size:15px; font-weight:600;}
+
+  /* ---- Toast ---- */
+  #toast{
+    position:fixed; left:16px; right:16px; bottom: calc(84px + env(safe-area-inset-bottom));
+    max-width:448px; margin:0 auto;
+    background:#2E2521; color:#fff; border-radius:14px; padding:12px 16px;
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    font-size:13px; transform:translateY(120%); transition:transform .25s ease;
+    z-index:50;
+  }
+  #toast.show{transform:translateY(0);}
+  #toast button{background:none; border:none; color:var(--rose); font-weight:700; font-size:13px;}
+
+  /* ---- Tab bar ---- */
+  nav.tabbar{
+    position:fixed; left:0; right:0; bottom:0;
+    padding-bottom: env(safe-area-inset-bottom);
+    background:rgba(251,246,243,0.92); backdrop-filter:blur(14px);
+    border-top:1px solid var(--line);
+    display:flex; justify-content:center;
+    z-index:40;
+  }
+  nav.tabbar .inner{
+    max-width:480px; width:100%; display:flex;
+  }
+  nav.tabbar button{
+    flex:1; border:none; background:transparent; padding:10px 0 8px;
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    color:var(--ink-soft); font-size:10.5px; font-weight:600;
+  }
+  nav.tabbar button.active{color:var(--rose-deep);}
+  nav.tabbar svg{width:22px; height:22px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <div>
+      <div class="title">Bảng Công</div>
+      <div class="sub">Hoa hồng dịch vụ thẩm mỹ</div>
+    </div>
+  </header>
+
+  <main id="main"></main>
+</div>
+
+<div id="toast"><span id="toast-msg"></span><button id="toast-undo">Hoàn tác</button></div>
+
+<nav class="tabbar">
+  <div class="inner">
+    <button id="tab-entry" class="active" onclick="setTab('entry')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Nhập
+    </button>
+    <button id="tab-stats" onclick="setTab('stats')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V10M12 19V5M20 19v-7"/></svg>
+      Thống kê
+    </button>
+  </div>
+</nav>
+
+<script>
+/* ================= Config ================= */
+const RATES = { tiem: 0.06, may: 0.08 };
+const LABELS = { tiem: 'Dịch vụ tiêm', may: 'Dịch vụ bắn máy' };
+const STORE_KEY = 'entries-store';
+
+/* ================= State ================= */
+let store = {};          // { "YYYY-MM-DD": [ {id, type, amount, ts} ] }
+let storeLoaded = false;
+let tab = 'entry';
+let entryDate = new Date();
+let statsMode = 'day';
+let statsAnchor = new Date();
+let pendingType = 'tiem';
+let pendingDigits = '';
+let pendingCustomerName = '';
+let pendingCustomerCode = '';
+let lastDeleted = null;
+let toastTimer = null;
+
+/* ================= Storage helpers ================= */
+async function loadStore(){
+  try{
+    const res = await window.storage.get(STORE_KEY, false);
+    store = res && res.value ? JSON.parse(res.value) : {};
+  }catch(e){
+    store = {};
+  }
+  storeLoaded = true;
+}
+async function saveStore(){
+  try{ await window.storage.set(STORE_KEY, JSON.stringify(store), false); }
+  catch(e){ console.error('Lưu thất bại', e); }
+}
+
+/* ================= Date helpers ================= */
+function pad(n){ return n<10 ? '0'+n : ''+n; }
+function keyOf(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function sameDay(a,b){ return keyOf(a)===keyOf(b); }
+function addDays(d,n){ const r=new Date(d); r.setDate(r.getDate()+n); return r; }
+function addMonths(d,n){ const r=new Date(d); r.setMonth(r.getMonth()+n); return r; }
+const WD = ['Chủ nhật','Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'];
+function fmtDate(d){ return pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear(); }
+
+function weekRange(d){
+  // Monday - Sunday
+  const day = d.getDay(); // 0 sun..6 sat
+  const diffToMon = day===0 ? -6 : 1-day;
+  const start = addDays(d, diffToMon);
+  const end = addDays(start, 6);
+  return {start, end};
+}
+function monthRange(d){
+  const start = new Date(d.getFullYear(), d.getMonth(), 1);
+  const end = new Date(d.getFullYear(), d.getMonth()+1, 0);
+  return {start, end};
+}
+function datesBetween(start,end){
+  const out=[]; let cur=new Date(start);
+  while(cur<=end){ out.push(new Date(cur)); cur=addDays(cur,1); }
+  return out;
+}
+
+/* ================= Money helpers ================= */
+function fmtVND(n){
+  return Math.round(n).toLocaleString('vi-VN') + ' đ';
+}
+
+function escapeHtml(value){
+  return String(value ?? '').replace(/[&<>"']/g, ch=>({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
+  })[ch]);
+}
+
+/* ================= Aggregation ================= */
+function entriesForDate(d){
+  return store[keyOf(d)] || [];
+}
+function aggregate(dates){
+  const agg = {
+    revenue:0, commission:0, count:0,
+    tiem:{revenue:0, commission:0, count:0},
+    may:{revenue:0, commission:0, count:0}
+  };
+  dates.forEach(d=>{
+    (store[keyOf(d)]||[]).forEach(e=>{
+      const c = e.amount * RATES[e.type];
+      agg.revenue += e.amount;
+      agg.commission += c;
+      agg.count += 1;
+      agg[e.type].revenue += e.amount;
+      agg[e.type].commission += c;
+      agg[e.type].count += 1;
+    });
+  });
+  return agg;
+}
+
+/* ================= Rendering ================= */
+function setTab(t){
+  tab = t;
+  document.getElementById('tab-entry').classList.toggle('active', t==='entry');
+  document.getElementById('tab-stats').classList.toggle('active', t==='stats');
+  render();
+}
+
+function render(){
+  const main = document.getElementById('main');
+  main.innerHTML = tab==='entry' ? renderEntryTab() : renderStatsTab();
+  attachEntryTabEvents();
+}
+
+function renderDateBar(){
+  const isToday = sameDay(entryDate, new Date());
+  return `
+  <div class="datebar">
+    <button class="nav" onclick="shiftEntryDate(-1)">‹</button>
+    <div class="label">
+      <span>${isToday ? 'Hôm nay' : fmtDate(entryDate)}</span>
+      <span class="wd">${WD[entryDate.getDay()]}${isToday ? ' · '+fmtDate(entryDate) : ''}</span>
+      <input type="date" value="${keyOf(entryDate)}" onchange="jumpEntryDate(this.value)">
+    </div>
+    <button class="nav" onclick="shiftEntryDate(1)">›</button>
+  </div>`;
+}
+
+function renderEntryTab(){
+  const list = entriesForDate(entryDate).slice().sort((a,b)=>b.ts-a.ts);
+  const agg = aggregate([entryDate]);
+  const preview = pendingDigits ? parseInt(pendingDigits,10) : 0;
+  const previewC = preview * RATES[pendingType];
+
+  return `
+    ${renderDateBar()}
+
+    <div class="typetoggle">
+      <button class="${pendingType==='tiem'?'sel-tiem':''}" onclick="selectType('tiem')">
+        <div><span class="dot tiem"></span><span class="name">Tiêm</span></div>
+        <div class="rate">Hoa hồng 6%</div>
+      </button>
+      <button class="${pendingType==='may'?'sel-may':''}" onclick="selectType('may')">
+        <div><span class="dot may"></span><span class="name">Bắn máy</span></div>
+        <div class="rate">Hoa hồng 8%</div>
+      </button>
+    </div>
+
+    <div class="customer-fields">
+      <div class="customer-field">
+        <label for="customer-name">Tên KH (không bắt buộc)</label>
+        <input id="customer-name" type="text" maxlength="80" autocomplete="off"
+          placeholder="Nhập tên" value="${escapeHtml(pendingCustomerName)}"
+          oninput="pendingCustomerName=this.value">
+      </div>
+      <div class="customer-field">
+        <label for="customer-code">MSKH (không bắt buộc)</label>
+        <input id="customer-code" type="text" maxlength="40" autocomplete="off" autocapitalize="characters"
+          placeholder="Nhập MSKH" value="${escapeHtml(pendingCustomerCode)}"
+          oninput="pendingCustomerCode=this.value">
+      </div>
+    </div>
+
+    <div class="entrycard">
+      <div class="amount-display">
+        <div class="val ${pendingDigits?'':'placeholder'} tnum">${pendingDigits ? fmtVND(preview) : '0 đ'}</div>
+        <div class="commission tnum">${pendingDigits ? 'Hoa hồng dự kiến: '+fmtVND(previewC) : '&nbsp;'}</div>
+      </div>
+      <div class="numpad">
+        ${[1,2,3,4,5,6,7,8,9].map(n=>`<button onclick="numTap('${n}')">${n}</button>`).join('')}
+        <button class="zero3" onclick="numTap('000')">000</button>
+        <button onclick="numTap('0')">0</button>
+        <button class="back" onclick="numBack()">⌫</button>
+      </div>
+      <button class="addbtn" id="addbtn" ${preview<=0?'disabled':''} onclick="addEntry()">Thêm vào bảng công</button>
+    </div>
+
+    <div class="summary">
+      <div class="box"><div class="k">Doanh thu ngày</div><div class="v tnum">${fmtVND(agg.revenue)}</div></div>
+      <div class="box hi"><div class="k">Hoa hồng ngày</div><div class="v tnum">${fmtVND(agg.commission)}</div></div>
+    </div>
+
+    <div class="listtitle">Danh sách hôm nay (${list.length})</div>
+    ${list.length===0 ? `
+      <div class="empty"><div class="ic">🗒️</div>Chưa có đơn nào trong ngày này.<br>Nhập số tiền phía trên để bắt đầu.</div>
+    ` : list.map(e=>`
+      <div class="entry-row">
+        <span class="dot ${e.type}"></span>
+        <div class="info">
+          <div class="t">${LABELS[e.type]}</div>
+          <div class="c tnum">+ ${fmtVND(e.amount*RATES[e.type])} hoa hồng</div>
+          <div class="customer">${e.customerName || e.customerCode
+            ? [e.customerName ? escapeHtml(e.customerName) : '', e.customerCode ? 'MSKH: '+escapeHtml(e.customerCode) : ''].filter(Boolean).join(' · ')
+            : 'Chưa có thông tin khách hàng'}</div>
+        </div>
+        <div class="amt tnum">${fmtVND(e.amount)}</div>
+        <button class="edit" aria-label="Sửa thông tin khách hàng" onclick="editCustomer('${keyOf(entryDate)}','${e.id}')">✎</button>
+        <button class="del" onclick="deleteEntry('${keyOf(entryDate)}','${e.id}')">✕</button>
+      </div>
+    `).join('')}
+  `;
+}
+
+function renderStatsTab(){
+  let dates, label, sublabel;
+  if(statsMode==='day'){
+    dates=[statsAnchor];
+    label = sameDay(statsAnchor,new Date()) ? 'Hôm nay' : fmtDate(statsAnchor);
+    sublabel = WD[statsAnchor.getDay()]+' · '+fmtDate(statsAnchor);
+  } else if(statsMode==='week'){
+    const {start,end}=weekRange(statsAnchor);
+    dates=datesBetween(start,end);
+    label = 'Tuần '+fmtDate(start)+' – '+fmtDate(end);
+    sublabel = 'Thứ 2 → Chủ nhật';
+  } else {
+    const {start,end}=monthRange(statsAnchor);
+    dates=datesBetween(start,end);
+    label = 'Tháng '+pad(statsAnchor.getMonth()+1)+'/'+statsAnchor.getFullYear();
+    sublabel = dates.length+' ngày trong tháng';
+  }
+  const agg = aggregate(dates);
+  const total = agg.commission || 1;
+  const tiemPct = agg.tiem.commission/total;
+  const mayPct = agg.may.commission/total;
+
+  // donut geometry
+  const r=42, c=2*Math.PI*r;
+  const tiemLen = agg.commission>0 ? tiemPct*c : 0;
+  const mayLen = agg.commission>0 ? mayPct*c : 0;
+
+  return `
+    <div class="segmented">
+      <button class="${statsMode==='day'?'active':''}" onclick="setStatsMode('day')">Ngày</button>
+      <button class="${statsMode==='week'?'active':''}" onclick="setStatsMode('week')">Tuần</button>
+      <button class="${statsMode==='month'?'active':''}" onclick="setStatsMode('month')">Tháng</button>
+    </div>
+
+    <div class="periodbar">
+      <button onclick="shiftStats(-1)">‹</button>
+      <div class="plabel">${label}<span class="sm">${sublabel}</span></div>
+      <button onclick="shiftStats(1)">›</button>
+    </div>
+
+    <div class="summary">
+      <div class="box"><div class="k">Tổng doanh thu</div><div class="v tnum">${fmtVND(agg.revenue)}</div></div>
+      <div class="box hi"><div class="k">Tổng hoa hồng</div><div class="v tnum">${fmtVND(agg.commission)}</div></div>
+    </div>
+
+    <div class="donutwrap">
+      <svg width="100" height="100" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="${r}" fill="none" stroke="#F1E7E1" stroke-width="12"/>
+        ${agg.commission>0 ? `
+        <circle cx="50" cy="50" r="${r}" fill="none" stroke="var(--tiem)" stroke-width="12"
+          stroke-dasharray="${tiemLen} ${c-tiemLen}" stroke-dashoffset="0" transform="rotate(-90 50 50)" stroke-linecap="round"/>
+        <circle cx="50" cy="50" r="${r}" fill="none" stroke="var(--may)" stroke-width="12"
+          stroke-dasharray="${mayLen} ${c-mayLen}" stroke-dashoffset="${-tiemLen}" transform="rotate(-90 50 50)" stroke-linecap="round"/>
+        ` : ''}
+        <text x="50" y="47" text-anchor="middle" class="display" font-size="11" fill="var(--ink)" font-weight="600">${agg.count}</text>
+        <text x="50" y="60" text-anchor="middle" font-size="7.5" fill="var(--ink-soft)">đơn</text>
+      </svg>
+      <div class="legend">
+        <div class="row">
+          <span class="sw tiem"></span>
+          <div class="txt"><div class="n">Tiêm — ${agg.tiem.count} đơn</div><div class="v tnum">${fmtVND(agg.tiem.commission)}</div></div>
+        </div>
+        <div class="row">
+          <span class="sw may"></span>
+          <div class="txt"><div class="n">Bắn máy — ${agg.may.count} đơn</div><div class="v tnum">${fmtVND(agg.may.commission)}</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="breakdown">
+      <div class="bd-row">
+        <div class="hd"><span class="dot tiem" style="width:8px;height:8px;border-radius:50%;display:inline-block;background:var(--tiem);margin-right:6px;"></span><span class="name">Dịch vụ tiêm</span><span class="rate">6%</span></div>
+        <div class="stats">
+          <div class="c"><div class="k">Doanh thu</div><div class="v tnum">${fmtVND(agg.tiem.revenue)}</div></div>
+          <div class="c"><div class="k">Hoa hồng</div><div class="v tnum">${fmtVND(agg.tiem.commission)}</div></div>
+        </div>
+      </div>
+      <div class="bd-row">
+        <div class="hd"><span class="dot may" style="width:8px;height:8px;border-radius:50%;display:inline-block;background:var(--may);margin-right:6px;"></span><span class="name">Dịch vụ bắn máy</span><span class="rate">8%</span></div>
+        <div class="stats">
+          <div class="c"><div class="k">Doanh thu</div><div class="v tnum">${fmtVND(agg.may.revenue)}</div></div>
+          <div class="c"><div class="k">Hoa hồng</div><div class="v tnum">${fmtVND(agg.may.commission)}</div></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function attachEntryTabEvents(){}
+
+/* ================= Actions ================= */
+function shiftEntryDate(n){ entryDate = addDays(entryDate, n); render(); }
+function jumpEntryDate(v){ if(v){ const [y,m,d]=v.split('-').map(Number); entryDate=new Date(y,m-1,d); render(); } }
+
+function setStatsMode(m){ statsMode=m; render(); }
+function shiftStats(n){
+  if(statsMode==='day') statsAnchor = addDays(statsAnchor, n);
+  else if(statsMode==='week') statsAnchor = addDays(statsAnchor, n*7);
+  else statsAnchor = addMonths(statsAnchor, n);
+  render();
+}
+
+function selectType(t){ pendingType=t; render(); }
+
+function numTap(v){
+  if(pendingDigits==='' && v==='0') return;
+  if(pendingDigits.length>=12) return;
+  pendingDigits += v;
+  pendingDigits = pendingDigits.replace(/^0+(?=\d)/,'');
+  render();
+}
+function numBack(){
+  pendingDigits = pendingDigits.slice(0,-1);
+  render();
+}
+
+async function addEntry(){
+  const amount = parseInt(pendingDigits||'0',10);
+  if(amount<=0) return;
+  const key = keyOf(entryDate);
+  if(!store[key]) store[key]=[];
+  store[key].push({
+    id: 'e'+Date.now()+Math.random().toString(36).slice(2,7),
+    type: pendingType,
+    amount,
+    customerName: pendingCustomerName.trim(),
+    customerCode: pendingCustomerCode.trim(),
+    ts: Date.now()
+  });
+  pendingDigits='';
+  pendingCustomerName='';
+  pendingCustomerCode='';
+  render();
+  await saveStore();
+}
+
+async function editCustomer(key, id){
+  const entry = (store[key]||[]).find(e=>e.id===id);
+  if(!entry) return;
+  const name = prompt('Tên khách hàng (có thể để trống):', entry.customerName || '');
+  if(name===null) return;
+  const code = prompt('MSKH (có thể để trống):', entry.customerCode || '');
+  if(code===null) return;
+  entry.customerName = name.trim();
+  entry.customerCode = code.trim();
+  render();
+  await saveStore();
+  showToast('Đã cập nhật thông tin KH');
+}
+
+async function deleteEntry(key, id){
+  const arr = store[key]||[];
+  const idx = arr.findIndex(e=>e.id===id);
+  if(idx===-1) return;
+  lastDeleted = { key, entry: arr[idx] };
+  arr.splice(idx,1);
+  render();
+  await saveStore();
+  showToast('Đã xóa đơn');
+}
+
+async function undoDelete(){
+  if(!lastDeleted) return;
+  const {key, entry} = lastDeleted;
+  if(!store[key]) store[key]=[];
+  store[key].push(entry);
+  lastDeleted=null;
+  hideToast();
+  render();
+  await saveStore();
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideToast, 4000);
+}
+function hideToast(){
+  document.getElementById('toast').classList.remove('show');
+}
+document.getElementById('toast-undo').onclick = undoDelete;
+
+/* ================= Init ================= */
+(async function init(){
+  await loadStore();
+  render();
+})();
+</script>
+</body>
+</html>
