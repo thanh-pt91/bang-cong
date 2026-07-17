@@ -640,7 +640,7 @@ function renderEntryTab(){
             : 'Chưa có thông tin khách hàng'}</div>
         </div>
         <div class="amt tnum">${fmtVND(e.amount)}</div>
-        <button class="edit" aria-label="Sửa thông tin khách hàng" onclick="editCustomer('${keyOf(entryDate)}','${e.id}')">✎</button>
+        <button class="edit" aria-label="Sửa đơn" onclick="editEntry('${keyOf(entryDate)}','${e.id}')">✎</button>
         <button class="del" onclick="deleteEntry('${keyOf(entryDate)}','${e.id}')">✕</button>
       </div>
     `).join('')}
@@ -785,13 +785,21 @@ async function addEntry(){
   await syncEntry(entry,key);
 }
 
-async function editCustomer(key, id){
+async function editEntry(key, id){
   const entry = (store[key]||[]).find(e=>e.id===id);
   if(!entry) return;
+  const amountText = prompt('Số tiền dịch vụ:', String(entry.amount));
+  if(amountText===null) return;
+  const amount = Number(amountText.replace(/[^0-9]/g,''));
+  if(!Number.isFinite(amount) || amount<=0){
+    alert('Số tiền không hợp lệ. Vui lòng nhập số lớn hơn 0.');
+    return;
+  }
   const name = prompt('Tên khách hàng (có thể để trống):', entry.customerName || '');
   if(name===null) return;
   const code = prompt('MSKH (có thể để trống):', entry.customerCode || '');
   if(code===null) return;
+  entry.amount = amount;
   entry.customerName = name.trim();
   entry.customerCode = code.trim();
   render();
@@ -804,6 +812,9 @@ async function deleteEntry(key, id){
   const arr = store[key]||[];
   const idx = arr.findIndex(e=>e.id===id);
   if(idx===-1) return;
+  const entry = arr[idx];
+  const customer = entry.customerName ? '\nKhách hàng: '+entry.customerName : '';
+  if(!confirm('Bạn có chắc muốn xóa đơn '+fmtVND(entry.amount)+'?'+customer)) return;
   lastDeleted = { key, entry: arr[idx] };
   arr.splice(idx,1);
   render();
