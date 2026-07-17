@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Dr Huong">
+<meta name="theme-color" content="#FBF6F3">
+<link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
 <title>Bảng Công</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap');
@@ -214,8 +217,10 @@
     width:34px; height:34px; border-radius:10px; border:none; background:var(--card);
     box-shadow:var(--shadow); color:var(--rose-deep); font-size:16px;
   }
-  .periodbar .plabel{font-size:14px; font-weight:700; text-align:center;}
+  .periodbar .plabel{font-size:14px; font-weight:700; text-align:center; position:relative; min-width:190px; padding:5px 10px; border-radius:12px;}
+  .periodbar .plabel:active{background:#F1E7E1;}
   .periodbar .plabel .sm{display:block; font-size:11px; font-weight:500; color:var(--ink-soft); margin-top:1px;}
+  .periodbar .plabel input[type=date]{position:absolute; opacity:0; inset:0; width:100%; height:100%; border:none; cursor:pointer;}
 
   /* ---- Donut ---- */
   .donutwrap{
@@ -246,6 +251,37 @@
   .bd-row .stats .c{}
   .bd-row .stats .c .k{font-size:10.5px; color:var(--ink-soft);}
   .bd-row .stats .c .v{font-family:'Fraunces', serif; font-size:15px; font-weight:600;}
+
+  /* ---- App modals ---- */
+  .modal-backdrop{
+    position:fixed; inset:0; z-index:80; padding:20px;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(46,37,33,.34); backdrop-filter:blur(5px);
+    opacity:0; visibility:hidden; pointer-events:none;
+    transition:opacity .2s ease, visibility 0s linear .2s;
+  }
+  .modal-backdrop.show{opacity:1; visibility:visible; pointer-events:auto; transition:opacity .2s ease;}
+  .app-modal{
+    width:100%; max-width:410px; background:var(--bg); border:1px solid var(--line);
+    border-radius:24px; padding:22px; box-shadow:0 18px 60px rgba(46,37,33,.22);
+    transform:translateY(12px) scale(.98); transition:transform .2s ease;
+  }
+  .modal-backdrop.show .app-modal{transform:translateY(0) scale(1);}
+  .modal-icon{width:42px; height:42px; border-radius:14px; display:flex; align-items:center; justify-content:center; margin-bottom:13px; background:#F3E7E3; color:var(--rose-deep); font-size:19px;}
+  .modal-title{font-family:'Fraunces',serif; font-size:22px; font-weight:600; margin-bottom:5px;}
+  .modal-sub{font-size:12.5px; line-height:1.45; color:var(--ink-soft); margin-bottom:17px;}
+  .modal-field{margin-bottom:12px;}
+  .modal-field label{display:block; font-size:11px; color:var(--ink-soft); margin:0 2px 6px;}
+  .modal-field input{width:100%; border:1.5px solid var(--line); background:var(--card); color:var(--ink); border-radius:13px; padding:12px 13px; outline:none; font:600 15px 'Inter',sans-serif;}
+  .modal-field input:focus{border-color:var(--rose); box-shadow:0 0 0 3px rgba(179,105,122,.10);}
+  .modal-error{min-height:16px; color:var(--danger); font-size:11.5px; margin-top:-4px;}
+  .modal-actions{display:flex; gap:10px; margin-top:16px;}
+  .modal-actions button{flex:1; border:none; border-radius:13px; padding:12px; font-size:14px; font-weight:700;}
+  .modal-cancel{background:#F1E7E1; color:var(--ink-soft);}
+  .modal-primary{background:var(--rose); color:#fff;}
+  .modal-danger{background:var(--danger); color:#fff;}
+  .delete-amount{font-family:'Fraunces',serif; font-size:24px; color:var(--rose-deep); font-weight:600; margin:8px 0 3px;}
+  .delete-customer{font-size:13px; color:var(--ink-soft);}
 
   /* ---- Toast ---- */
   #toast{
@@ -312,6 +348,26 @@
   <main id="main"></main>
 </div>
 
+<div class="modal-backdrop" id="edit-modal" onclick="backdropClose(event,'edit-modal')">
+  <div class="app-modal" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
+    <div class="modal-icon">✎</div><div class="modal-title" id="edit-modal-title">Chỉnh sửa đơn</div>
+    <div class="modal-sub">Cập nhật số tiền và thông tin khách hàng.</div>
+    <div class="modal-field"><label for="edit-amount">Số tiền dịch vụ</label><input id="edit-amount" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off"></div>
+    <div class="modal-field"><label for="edit-name">Tên khách hàng</label><input id="edit-name" type="text" maxlength="80" autocomplete="off"></div>
+    <div class="modal-field"><label for="edit-code">MSKH</label><input id="edit-code" type="text" maxlength="40" autocomplete="off" autocapitalize="characters"></div>
+    <div class="modal-error" id="edit-error"></div>
+    <div class="modal-actions"><button class="modal-cancel" onclick="closeModal('edit-modal')">Hủy</button><button class="modal-primary" onclick="saveEditEntry()">Lưu thay đổi</button></div>
+  </div>
+</div>
+<div class="modal-backdrop" id="delete-modal" onclick="backdropClose(event,'delete-modal')">
+  <div class="app-modal" role="alertdialog" aria-modal="true" aria-labelledby="delete-modal-title">
+    <div class="modal-icon">×</div><div class="modal-title" id="delete-modal-title">Xóa đơn này?</div>
+    <div class="modal-sub">Thao tác sẽ xóa đơn khỏi bảng công và dữ liệu đồng bộ.</div>
+    <div class="delete-amount" id="delete-amount"></div><div class="delete-customer" id="delete-customer"></div>
+    <div class="modal-actions"><button class="modal-cancel" onclick="closeModal('delete-modal')">Hủy</button><button class="modal-danger" onclick="confirmDeleteEntry()">Xóa đơn</button></div>
+  </div>
+</div>
+
 <div id="toast"><span id="toast-msg"></span><button id="toast-undo">Hoàn tác</button></div>
 
 <nav class="tabbar">
@@ -354,6 +410,8 @@ let lastDeleted = null;
 let toastTimer = null;
 let currentUser = null;
 let appStarted = false;
+let editContext = null;
+let deleteContext = null;
 
 /* ================= Storage helpers ================= */
 function activeStoreKey(){ return currentUser ? STORE_KEY+':'+currentUser.id : STORE_KEY; }
@@ -683,7 +741,7 @@ function renderStatsTab(){
 
     <div class="periodbar">
       <button onclick="shiftStats(-1)">‹</button>
-      <div class="plabel">${label}<span class="sm">${sublabel}</span></div>
+      <div class="plabel">${label}<span class="sm">${sublabel}</span>${statsMode==='day' ? `<input type="date" aria-label="Chọn ngày thống kê" value="${keyOf(statsAnchor)}" onchange="jumpStatsDate(this.value)">` : ''}</div>
       <button onclick="shiftStats(1)">›</button>
     </div>
 
@@ -748,6 +806,12 @@ function shiftStats(n){
   else statsAnchor = addMonths(statsAnchor, n);
   render();
 }
+function jumpStatsDate(value){
+  if(!value) return;
+  const [year,month,day]=value.split('-').map(Number);
+  statsAnchor=new Date(year,month-1,day);
+  render();
+}
 
 function selectType(t){ pendingType=t; render(); }
 
@@ -785,7 +849,7 @@ async function addEntry(){
   await syncEntry(entry,key);
 }
 
-async function editEntry(key, id){
+async function editEntryLegacy(key, id){
   const entry = (store[key]||[]).find(e=>e.id===id);
   if(!entry) return;
   const amountText = prompt('Số tiền dịch vụ:', String(entry.amount));
@@ -808,7 +872,7 @@ async function editEntry(key, id){
   showToast('Đã cập nhật thông tin KH');
 }
 
-async function deleteEntry(key, id){
+async function deleteEntryLegacy(key, id){
   const arr = store[key]||[];
   const idx = arr.findIndex(e=>e.id===id);
   if(idx===-1) return;
@@ -820,6 +884,64 @@ async function deleteEntry(key, id){
   render();
   await saveStore();
   await removeRemoteEntry(id);
+  showToast('Đã xóa đơn');
+}
+
+function openModal(id){ document.getElementById(id).classList.add('show'); }
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+function backdropClose(event,id){ if(event.target===event.currentTarget) closeModal(id); }
+
+function editEntry(key,id){
+  const entry=(store[key]||[]).find(item=>item.id===id);
+  if(!entry) return;
+  editContext={key,id};
+  document.getElementById('edit-amount').value=String(entry.amount);
+  document.getElementById('edit-name').value=entry.customerName||'';
+  document.getElementById('edit-code').value=entry.customerCode||'';
+  document.getElementById('edit-error').textContent='';
+  openModal('edit-modal');
+  setTimeout(()=>document.getElementById('edit-amount').focus(),220);
+}
+
+async function saveEditEntry(){
+  if(!editContext) return;
+  const {key,id}=editContext;
+  const entry=(store[key]||[]).find(item=>item.id===id);
+  if(!entry) return closeModal('edit-modal');
+  const amount=Number(document.getElementById('edit-amount').value.replace(/[^0-9]/g,''));
+  if(!Number.isFinite(amount)||amount<=0){
+    document.getElementById('edit-error').textContent='Vui lòng nhập số tiền lớn hơn 0.';
+    return;
+  }
+  entry.amount=amount;
+  entry.customerName=document.getElementById('edit-name').value.trim();
+  entry.customerCode=document.getElementById('edit-code').value.trim();
+  editContext=null;
+  closeModal('edit-modal');
+  render(); await saveStore(); await syncEntry(entry,key);
+  showToast('Đã cập nhật đơn');
+}
+
+function deleteEntry(key,id){
+  const entry=(store[key]||[]).find(item=>item.id===id);
+  if(!entry) return;
+  deleteContext={key,id};
+  document.getElementById('delete-amount').textContent=fmtVND(entry.amount);
+  document.getElementById('delete-customer').textContent=entry.customerName ? 'Khách hàng: '+entry.customerName : 'Chưa có tên khách hàng';
+  openModal('delete-modal');
+}
+
+async function confirmDeleteEntry(){
+  if(!deleteContext) return;
+  const {key,id}=deleteContext;
+  const arr=store[key]||[];
+  const idx=arr.findIndex(item=>item.id===id);
+  if(idx===-1) return closeModal('delete-modal');
+  lastDeleted={key,entry:arr[idx]};
+  arr.splice(idx,1);
+  deleteContext=null;
+  closeModal('delete-modal');
+  render(); await saveStore(); await removeRemoteEntry(id);
   showToast('Đã xóa đơn');
 }
 
