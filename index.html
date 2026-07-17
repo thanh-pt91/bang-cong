@@ -228,6 +228,12 @@
   .summary .box .k{font-size:11px; color:var(--ink-soft); margin-bottom:4px;}
   .summary .box .v{font-family:'Fraunces', serif; font-size:19px; font-weight:600;}
   .summary .box.hi .v{color:var(--rose-deep);}
+  .summary .compare{display:flex; align-items:center; gap:4px; flex-wrap:wrap; margin-top:5px; font-size:9.5px; line-height:1.25; font-variant-numeric:tabular-nums;}
+  .summary .compare .previous{color:var(--ink-soft);}
+  .summary .compare .trend{font-weight:700;}
+  .summary .compare .trend.up{color:#2E8B57;}
+  .summary .compare .trend.down{color:#C25B4E;}
+  .summary .compare .trend.flat{color:var(--ink-soft);}
 
   /* ---- List ---- */
   .listtitle{font-size:12.5px; font-weight:700; color:var(--ink-soft); margin: 6px 2px 8px; text-transform:uppercase; letter-spacing:0.4px;}
@@ -774,6 +780,30 @@ function aggregate(dates){
   return agg;
 }
 
+function previousStatsDates(){
+  if(statsMode==='day') return [addDays(statsAnchor,-1)];
+  if(statsMode==='week'){
+    const {start,end}=weekRange(statsAnchor);
+    return datesBetween(addDays(start,-7),addDays(end,-7));
+  }
+  const previousMonth=addMonths(statsAnchor,-1);
+  const {start,end}=monthRange(previousMonth);
+  return datesBetween(start,end);
+}
+
+function renderComparison(current,previous){
+  const delta=current-previous;
+  let className='flat', arrow='→', change='0%';
+  if(delta>0){
+    className='up'; arrow='↑';
+    change=previous>0 ? '+'+(delta/previous*100).toLocaleString('vi-VN',{maximumFractionDigits:1})+'%' : 'mới';
+  }else if(delta<0){
+    className='down'; arrow='↓';
+    change=previous>0 ? '-'+(Math.abs(delta)/previous*100).toLocaleString('vi-VN',{maximumFractionDigits:1})+'%' : '0%';
+  }
+  return `<div class="compare"><span class="previous">${fmtVND(previous)}</span><span class="trend ${className}">${arrow} ${change}</span></div>`;
+}
+
 /* ================= Rendering ================= */
 function setTab(t){
   tab = t;
@@ -944,6 +974,7 @@ function renderStatsTab(){
     sublabel = dates.length+' ngày trong tháng';
   }
   const agg = aggregate(dates);
+  const previousAgg = aggregate(previousStatsDates());
   const total = agg.commission || 1;
   const tiemPct = agg.tiem.commission/total;
   const mayPct = agg.may.commission/total;
@@ -967,8 +998,8 @@ function renderStatsTab(){
     </div>
 
     <div class="summary">
-      <div class="box"><div class="k">Tổng doanh thu</div><div class="v tnum">${fmtVND(agg.revenue)}</div></div>
-      <div class="box hi"><div class="k">Tổng hoa hồng</div><div class="v tnum">${fmtVND(agg.commission)}</div></div>
+      <div class="box"><div class="k">Tổng doanh thu</div><div class="v tnum">${fmtVND(agg.revenue)}</div>${renderComparison(agg.revenue,previousAgg.revenue)}</div>
+      <div class="box hi"><div class="k">Tổng hoa hồng</div><div class="v tnum">${fmtVND(agg.commission)}</div>${renderComparison(agg.commission,previousAgg.commission)}</div>
     </div>
 
     <div class="donutwrap">
