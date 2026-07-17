@@ -64,7 +64,7 @@
   .auth-submit:disabled{opacity:.55;}
   #auth-error{min-height:18px; margin-top:12px; color:var(--danger); font-size:12px; text-align:center;}
   .account-tools{display:flex; align-items:center; gap:8px;}
-  #sync-state{font-size:10.5px; color:var(--ink-soft);}
+  #sync-state{font-size:10.5px; color:var(--ink-soft); cursor:pointer; padding:5px 2px;}
   .logout-btn{border:1px solid var(--line); background:var(--card); color:var(--ink-soft); border-radius:10px; padding:6px 9px; font-size:11px; font-weight:600;}
 
   header.top{
@@ -407,7 +407,7 @@
       <div class="sub">Hoa hồng dịch vụ thẩm mỹ</div>
     </div>
     <div class="account-tools">
-      <span id="sync-state">Đang kết nối…</span>
+      <span id="sync-state" onclick="syncAll()" title="Chạm để đồng bộ lại">Đang kết nối…</span>
       <button class="logout-btn" onclick="logout()">Đăng xuất</button>
     </div>
   </header>
@@ -519,6 +519,7 @@ function remoteRow(entry, dateKey){
 }
 
 async function syncEntry(entry, dateKey){
+  entry.updatedAt=Date.now();
   const queueKey=activeStoreKey()+':deletes';
   const pending=JSON.parse(localStorage.getItem(queueKey)||'[]');
   localStorage.setItem(queueKey,JSON.stringify(pending.filter(id=>id!==entry.id)));
@@ -544,7 +545,7 @@ async function removeRemoteEntry(id){
   return true;
 }
 
-async function syncAll(){
+async function syncAllLegacy(){
   if(!currentUser || !navigator.onLine) return setSyncState('Đang ngoại tuyến');
   setSyncState('Đang đồng bộ…');
   const queueKey=activeStoreKey()+':deletes';
@@ -569,6 +570,52 @@ async function syncAll(){
       id:row.id, visitId:visitKeyOf({id:row.id}), type:row.service_type, amount:Number(row.amount),
       customerName:row.customer_name||'', customerCode:row.customer_code||'',
       ts:new Date(row.created_at).getTime()
+    });
+  });
+  store=remoteStore;
+  await saveStore();
+  localStorage.removeItem(STORE_KEY);
+  render();
+  setSyncState('Đã đồng bộ');
+}
+
+async function syncAll(){
+  if(!currentUser || !navigator.onLine) return setSyncState('Đang ngoại tuyến');
+  setSyncState('Đang đồng bộ…');
+  const queueKey=activeStoreKey()+':deletes';
+  const pendingDeletes=JSON.parse(localStorage.getItem(queueKey)||'[]');
+  if(pendingDeletes.length){
+    const {error:deleteError}=await dbClient.from('entries').delete().in('id',pendingDeletes);
+    if(deleteError){ console.error(deleteError); setSyncState('Lỗi đồng bộ'); return; }
+    localStorage.setItem(queueKey,'[]');
+  }
+
+  const columns='id,work_date,service_type,customer_name,customer_code,amount,created_at,updated_at';
+  const {data:remoteBefore,error:readError}=await dbClient.from('entries').select(columns);
+  if(readError){ console.error(readError); setSyncState('Lỗi đồng bộ'); return; }
+  const remoteById={};
+  (remoteBefore||[]).forEach(row=>remoteById[row.id]=row);
+  const uploads=[];
+  Object.keys(store).forEach(dateKey=>(store[dateKey]||[]).forEach(entry=>{
+    const remote=remoteById[entry.id];
+    const localTime=Number(entry.updatedAt||entry.ts||0);
+    const remoteTime=remote ? new Date(remote.updated_at||remote.created_at).getTime() : 0;
+    if(!remote || localTime>remoteTime+1000) uploads.push(remoteRow(entry,dateKey));
+  }));
+  if(uploads.length){
+    const {error:uploadError}=await dbClient.from('entries').upsert(uploads,{onConflict:'id'});
+    if(uploadError){ console.error(uploadError); setSyncState('Lỗi đồng bộ'); return; }
+  }
+
+  const {data,error}=await dbClient.from('entries').select(columns).order('created_at',{ascending:true});
+  if(error){ console.error(error); setSyncState('Lỗi đồng bộ'); return; }
+  const remoteStore={};
+  (data||[]).forEach(row=>{
+    if(!remoteStore[row.work_date]) remoteStore[row.work_date]=[];
+    remoteStore[row.work_date].push({
+      id:row.id, visitId:visitKeyOf({id:row.id}), type:row.service_type, amount:Number(row.amount),
+      customerName:row.customer_name||'', customerCode:row.customer_code||'',
+      ts:new Date(row.created_at).getTime(), updatedAt:new Date(row.updated_at||row.created_at).getTime()
     });
   });
   store=remoteStore;
