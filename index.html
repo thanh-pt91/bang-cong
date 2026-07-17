@@ -39,9 +39,29 @@
   #app{
     max-width:480px; margin:0 auto;
     min-height:100vh;
-    display:flex; flex-direction:column;
+    display:none; flex-direction:column;
     padding-bottom: calc(72px + env(safe-area-inset-bottom));
   }
+  body.authenticated #app{display:flex;}
+
+  #auth-screen{
+    min-height:100vh; padding:calc(28px + env(safe-area-inset-top)) 22px calc(28px + env(safe-area-inset-bottom));
+    display:flex; align-items:center; justify-content:center;
+  }
+  body.authenticated #auth-screen{display:none;}
+  .auth-card{width:100%; max-width:420px; background:var(--card); border-radius:24px; padding:28px 22px; box-shadow:var(--shadow);}
+  .auth-title{font-family:'Fraunces',serif; font-size:28px; font-weight:600; margin-bottom:5px;}
+  .auth-sub{font-size:13px; color:var(--ink-soft); margin-bottom:24px; line-height:1.5;}
+  .auth-field{margin-bottom:13px;}
+  .auth-field label{display:block; font-size:11px; color:var(--ink-soft); margin:0 2px 6px;}
+  .auth-field input{width:100%; border:1.5px solid var(--line); border-radius:13px; padding:13px 14px; outline:none; font:500 15px 'Inter',sans-serif; color:var(--ink); background:#fff;}
+  .auth-field input:focus{border-color:var(--rose);}
+  .auth-submit{width:100%; border:none; border-radius:14px; padding:14px; margin-top:5px; background:var(--rose); color:#fff; font-size:15px; font-weight:700;}
+  .auth-submit:disabled{opacity:.55;}
+  #auth-error{min-height:18px; margin-top:12px; color:var(--danger); font-size:12px; text-align:center;}
+  .account-tools{display:flex; align-items:center; gap:8px;}
+  #sync-state{font-size:10.5px; color:var(--ink-soft);}
+  .logout-btn{border:1px solid var(--line); background:var(--card); color:var(--ink-soft); border-radius:10px; padding:6px 9px; font-size:11px; font-weight:600;}
 
   header.top{
     padding: calc(18px + env(safe-area-inset-top)) 20px 14px;
@@ -233,10 +253,14 @@
     max-width:448px; margin:0 auto;
     background:#2E2521; color:#fff; border-radius:14px; padding:12px 16px;
     display:flex; align-items:center; justify-content:space-between; gap:10px;
-    font-size:13px; transform:translateY(120%); transition:transform .25s ease;
+    font-size:13px; transform:translateY(16px); opacity:0; visibility:hidden;
+    pointer-events:none; transition:transform .25s ease, opacity .2s ease, visibility 0s linear .25s;
     z-index:50;
   }
-  #toast.show{transform:translateY(0);}
+  #toast.show{
+    transform:translateY(0); opacity:1; visibility:visible; pointer-events:auto;
+    transition:transform .25s ease, opacity .2s ease;
+  }
   #toast button{background:none; border:none; color:var(--rose); font-weight:700; font-size:13px;}
 
   /* ---- Tab bar ---- */
@@ -245,9 +269,10 @@
     padding-bottom: env(safe-area-inset-bottom);
     background:rgba(251,246,243,0.92); backdrop-filter:blur(14px);
     border-top:1px solid var(--line);
-    display:flex; justify-content:center;
+    display:none; justify-content:center;
     z-index:40;
   }
+  body.authenticated nav.tabbar{display:flex;}
   nav.tabbar .inner{
     max-width:480px; width:100%; display:flex;
   }
@@ -261,11 +286,26 @@
 </style>
 </head>
 <body>
+<div id="auth-screen">
+  <form class="auth-card" onsubmit="login(event)">
+    <div class="auth-title">Bảng Công</div>
+    <div class="auth-sub">Đăng nhập để lưu và đồng bộ dữ liệu hoa hồng an toàn.</div>
+    <div class="auth-field"><label for="login-email">Email</label><input id="login-email" type="email" autocomplete="username" required placeholder="email@example.com"></div>
+    <div class="auth-field"><label for="login-password">Mật khẩu</label><input id="login-password" type="password" autocomplete="current-password" required placeholder="Nhập mật khẩu"></div>
+    <button class="auth-submit" id="login-btn" type="submit">Đăng nhập</button>
+    <div id="auth-error"></div>
+  </form>
+</div>
+
 <div id="app">
   <header class="top">
     <div>
       <div class="title">Bảng Công</div>
       <div class="sub">Hoa hồng dịch vụ thẩm mỹ</div>
+    </div>
+    <div class="account-tools">
+      <span id="sync-state">Đang kết nối…</span>
+      <button class="logout-btn" onclick="logout()">Đăng xuất</button>
     </div>
   </header>
 
@@ -287,11 +327,17 @@
   </div>
 </nav>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* ================= Config ================= */
 const RATES = { tiem: 0.06, may: 0.08 };
 const LABELS = { tiem: 'Dịch vụ tiêm', may: 'Dịch vụ bắn máy' };
 const STORE_KEY = 'entries-store';
+const SUPABASE_URL = 'https://mcmpxhqbjixnxbwuxpjv.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_tZzdGmF987bN4lr-U8yicA_QL0q9Oyh';
+const dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  auth:{persistSession:true, autoRefreshToken:true, detectSessionInUrl:true}
+});
 
 /* ================= State ================= */
 let store = {};          // { "YYYY-MM-DD": [ {id, type, amount, ts} ] }
@@ -306,21 +352,134 @@ let pendingCustomerName = '';
 let pendingCustomerCode = '';
 let lastDeleted = null;
 let toastTimer = null;
+let currentUser = null;
+let appStarted = false;
 
 /* ================= Storage helpers ================= */
+function activeStoreKey(){ return currentUser ? STORE_KEY+':'+currentUser.id : STORE_KEY; }
 async function loadStore(){
   try{
-    const res = await window.storage.get(STORE_KEY, false);
-    store = res && res.value ? JSON.parse(res.value) : {};
+    const scoped = localStorage.getItem(activeStoreKey());
+    const legacy = localStorage.getItem(STORE_KEY);
+    store = JSON.parse(scoped || legacy || '{}');
   }catch(e){
     store = {};
   }
   storeLoaded = true;
 }
 async function saveStore(){
-  try{ await window.storage.set(STORE_KEY, JSON.stringify(store), false); }
+  try{ localStorage.setItem(activeStoreKey(), JSON.stringify(store)); }
   catch(e){ console.error('Lưu thất bại', e); }
 }
+
+/* ================= Supabase sync ================= */
+function setSyncState(text){
+  const el = document.getElementById('sync-state');
+  if(el) el.textContent = text;
+}
+
+function remoteRow(entry, dateKey){
+  return {
+    id: entry.id,
+    work_date: dateKey,
+    service_type: entry.type,
+    customer_name: entry.customerName || null,
+    customer_code: entry.customerCode || null,
+    amount: Number(entry.amount),
+    commission_rate: RATES[entry.type],
+    created_at: new Date(entry.ts || Date.now()).toISOString()
+  };
+}
+
+async function syncEntry(entry, dateKey){
+  const queueKey=activeStoreKey()+':deletes';
+  const pending=JSON.parse(localStorage.getItem(queueKey)||'[]');
+  localStorage.setItem(queueKey,JSON.stringify(pending.filter(id=>id!==entry.id)));
+  if(!currentUser || !navigator.onLine) return setSyncState('Lưu trên máy');
+  setSyncState('Đang đồng bộ…');
+  const {error} = await dbClient.from('entries').upsert(remoteRow(entry,dateKey), {onConflict:'id'});
+  if(error){ console.error(error); setSyncState('Chưa đồng bộ'); return false; }
+  setSyncState('Đã đồng bộ');
+  return true;
+}
+
+async function removeRemoteEntry(id){
+  const queueKey=activeStoreKey()+':deletes';
+  const pending=JSON.parse(localStorage.getItem(queueKey)||'[]');
+  if(!pending.includes(id)) pending.push(id);
+  localStorage.setItem(queueKey,JSON.stringify(pending));
+  if(!currentUser || !navigator.onLine) return setSyncState('Lưu trên máy');
+  setSyncState('Đang đồng bộ…');
+  const {error} = await dbClient.from('entries').delete().eq('id', id);
+  if(error){ console.error(error); setSyncState('Chưa đồng bộ'); return false; }
+  localStorage.setItem(queueKey,JSON.stringify(pending.filter(item=>item!==id)));
+  setSyncState('Đã đồng bộ');
+  return true;
+}
+
+async function syncAll(){
+  if(!currentUser || !navigator.onLine) return setSyncState('Đang ngoại tuyến');
+  setSyncState('Đang đồng bộ…');
+  const queueKey=activeStoreKey()+':deletes';
+  const pendingDeletes=JSON.parse(localStorage.getItem(queueKey)||'[]');
+  if(pendingDeletes.length){
+    const {error:deleteError}=await dbClient.from('entries').delete().in('id',pendingDeletes);
+    if(deleteError){ console.error(deleteError); setSyncState('Lỗi đồng bộ'); return; }
+    localStorage.setItem(queueKey,'[]');
+  }
+  const localRows=[];
+  Object.keys(store).forEach(dateKey=>(store[dateKey]||[]).forEach(entry=>localRows.push(remoteRow(entry,dateKey))));
+  if(localRows.length){
+    const {error:upsertError}=await dbClient.from('entries').upsert(localRows,{onConflict:'id'});
+    if(upsertError){ console.error(upsertError); setSyncState('Lỗi đồng bộ'); return; }
+  }
+  const {data,error}=await dbClient.from('entries').select('id,work_date,service_type,customer_name,customer_code,amount,created_at').order('created_at',{ascending:true});
+  if(error){ console.error(error); setSyncState('Lỗi đồng bộ'); return; }
+  const remoteStore={};
+  (data||[]).forEach(row=>{
+    if(!remoteStore[row.work_date]) remoteStore[row.work_date]=[];
+    remoteStore[row.work_date].push({
+      id:row.id, type:row.service_type, amount:Number(row.amount),
+      customerName:row.customer_name||'', customerCode:row.customer_code||'',
+      ts:new Date(row.created_at).getTime()
+    });
+  });
+  store=remoteStore;
+  await saveStore();
+  localStorage.removeItem(STORE_KEY);
+  render();
+  setSyncState('Đã đồng bộ');
+}
+
+async function startApp(user){
+  currentUser=user;
+  document.body.classList.add('authenticated');
+  await loadStore();
+  if(!appStarted){ render(); appStarted=true; }
+  await syncAll();
+}
+
+async function login(event){
+  event.preventDefault();
+  const button=document.getElementById('login-btn');
+  const errorBox=document.getElementById('auth-error');
+  button.disabled=true; button.textContent='Đang đăng nhập…'; errorBox.textContent='';
+  const email=document.getElementById('login-email').value.trim();
+  const password=document.getElementById('login-password').value;
+  const {data,error}=await dbClient.auth.signInWithPassword({email,password});
+  button.disabled=false; button.textContent='Đăng nhập';
+  if(error){ errorBox.textContent='Email hoặc mật khẩu chưa đúng.'; return; }
+  await startApp(data.user);
+}
+
+async function logout(){
+  await dbClient.auth.signOut();
+  currentUser=null; store={}; appStarted=false;
+  document.body.classList.remove('authenticated');
+}
+
+window.addEventListener('online',()=>syncAll());
+window.addEventListener('offline',()=>setSyncState('Đang ngoại tuyến'));
 
 /* ================= Date helpers ================= */
 function pad(n){ return n<10 ? '0'+n : ''+n; }
@@ -609,19 +768,21 @@ async function addEntry(){
   if(amount<=0) return;
   const key = keyOf(entryDate);
   if(!store[key]) store[key]=[];
-  store[key].push({
+  const entry = {
     id: 'e'+Date.now()+Math.random().toString(36).slice(2,7),
     type: pendingType,
     amount,
     customerName: pendingCustomerName.trim(),
     customerCode: pendingCustomerCode.trim(),
     ts: Date.now()
-  });
+  };
+  store[key].push(entry);
   pendingDigits='';
   pendingCustomerName='';
   pendingCustomerCode='';
   render();
   await saveStore();
+  await syncEntry(entry,key);
 }
 
 async function editCustomer(key, id){
@@ -635,6 +796,7 @@ async function editCustomer(key, id){
   entry.customerCode = code.trim();
   render();
   await saveStore();
+  await syncEntry(entry,key);
   showToast('Đã cập nhật thông tin KH');
 }
 
@@ -646,6 +808,7 @@ async function deleteEntry(key, id){
   arr.splice(idx,1);
   render();
   await saveStore();
+  await removeRemoteEntry(id);
   showToast('Đã xóa đơn');
 }
 
@@ -658,6 +821,7 @@ async function undoDelete(){
   hideToast();
   render();
   await saveStore();
+  await syncEntry(entry,key);
 }
 
 function showToast(msg){
@@ -674,8 +838,9 @@ document.getElementById('toast-undo').onclick = undoDelete;
 
 /* ================= Init ================= */
 (async function init(){
-  await loadStore();
-  render();
+  const {data,error}=await dbClient.auth.getSession();
+  if(error) console.error(error);
+  if(data && data.session && data.session.user) await startApp(data.session.user);
 })();
 </script>
 </body>
