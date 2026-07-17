@@ -79,7 +79,7 @@
     font-size:12px; color:var(--ink-soft);
   }
 
-  main{flex:1; padding: 0 16px 24px;}
+  main{flex:1; padding: 0 16px 24px; position:relative;}
 
   /* ---- Date nav ---- */
   .datebar{
@@ -318,6 +318,9 @@
   .detail-entry-money{text-align:right; flex-shrink:0;}
   .detail-entry-amount{font-family:'Fraunces',serif; font-size:14px; font-weight:600;}
   .detail-entry-com{font-size:10.5px; color:var(--rose-deep); margin-top:2px;}
+  .stats-detail-page{position:relative; z-index:2; min-height:calc(100vh - 120px); background:var(--bg); will-change:transform;}
+  .stats-back-preview{position:absolute; inset:0; z-index:1; min-height:100%; background:var(--bg); pointer-events:none; overflow:hidden;}
+  .stats-detail-page.swiping{border-radius:18px 0 0 18px; box-shadow:-10px 0 28px rgba(46,37,33,.18);}
 
   /* ---- App modals ---- */
   .modal-backdrop{
@@ -659,18 +662,54 @@ document.addEventListener('touchstart',event=>{
   if(!statsDetailType || event.touches.length!==1) return;
   const touch=event.touches[0];
   if(touch.clientX>55) return;
-  detailSwipeStart={x:touch.clientX,y:touch.clientY,time:Date.now()};
+  const page=document.getElementById('stats-detail-page');
+  const main=document.getElementById('main');
+  if(!page || !main) return;
+  document.getElementById('stats-back-preview')?.remove();
+  main.insertAdjacentHTML('afterbegin','<div id="stats-back-preview" class="stats-back-preview">'+renderStatsTab()+'</div>');
+  detailSwipeStart={x:touch.clientX,y:touch.clientY,time:Date.now(),page,moving:false};
 },{passive:true});
+document.addEventListener('touchmove',event=>{
+  if(!detailSwipeStart || !statsDetailType || event.touches.length!==1) return;
+  const touch=event.touches[0];
+  const dx=Math.max(0,touch.clientX-detailSwipeStart.x);
+  const dy=Math.abs(touch.clientY-detailSwipeStart.y);
+  if(dy>dx && !detailSwipeStart.moving) return;
+  if(dx<4) return;
+  detailSwipeStart.moving=true;
+  event.preventDefault();
+  detailSwipeStart.page.classList.add('swiping');
+  detailSwipeStart.page.style.transition='none';
+  detailSwipeStart.page.style.transform='translateX('+dx+'px)';
+},{passive:false});
 document.addEventListener('touchend',event=>{
   if(!detailSwipeStart || !statsDetailType || !event.changedTouches.length){ detailSwipeStart=null; return; }
+  const state=detailSwipeStart;
   const touch=event.changedTouches[0];
-  const dx=touch.clientX-detailSwipeStart.x;
-  const dy=Math.abs(touch.clientY-detailSwipeStart.y);
-  const duration=Date.now()-detailSwipeStart.time;
+  const dx=Math.max(0,touch.clientX-state.x);
+  const dy=Math.abs(touch.clientY-state.y);
+  const duration=Math.max(1,Date.now()-state.time);
+  const velocity=dx/duration;
   detailSwipeStart=null;
-  if(dx>=80 && dy<=60 && duration<=700) closeStatsDetail();
+  if(state.moving && dy<=80 && (dx>=100 || velocity>=0.5)){
+    state.page.style.transition='transform .22s ease-out';
+    state.page.style.transform='translateX(calc(100vw + 24px))';
+    setTimeout(()=>closeStatsDetail(),220);
+  }else{
+    state.page.style.transition='transform .2s ease-out';
+    state.page.style.transform='translateX(0)';
+    setTimeout(()=>{ state.page.classList.remove('swiping'); document.getElementById('stats-back-preview')?.remove(); },210);
+  }
 },{passive:true});
-document.addEventListener('touchcancel',()=>{ detailSwipeStart=null; },{passive:true});
+document.addEventListener('touchcancel',()=>{
+  if(detailSwipeStart?.page){
+    detailSwipeStart.page.style.transition='transform .2s ease-out';
+    detailSwipeStart.page.style.transform='translateX(0)';
+    detailSwipeStart.page.classList.remove('swiping');
+  }
+  detailSwipeStart=null;
+  document.getElementById('stats-back-preview')?.remove();
+},{passive:true});
 
 /* ================= Date helpers ================= */
 function pad(n){ return n<10 ? '0'+n : ''+n; }
@@ -1008,6 +1047,7 @@ function renderStatsDetail(){
   items.forEach(item=>{ if(!grouped[item.dateKey]) grouped[item.dateKey]=[]; grouped[item.dateKey].push(item); });
   const dateKeys=Object.keys(grouped).sort().reverse();
   return `
+    <div id="stats-detail-page" class="stats-detail-page">
     <div class="detail-top">
       <button class="detail-back" onclick="closeStatsDetail()" aria-label="Quay lại">‹</button>
       <div class="detail-heading"><div class="detail-title">${LABELS[type]}</div><div class="detail-period">${context.label} · ${items.length} dịch vụ</div></div>
@@ -1026,6 +1066,7 @@ function renderStatsDetail(){
         <div class="detail-entry-money"><div class="detail-entry-amount">${fmtVND(entry.amount)}</div><div class="detail-entry-com">+ ${fmtVND(entry.amount*RATES[type])}</div></div>
       </div>`).join('')}`;
     }).join('')}
+    </div>
   `;
 }
 
