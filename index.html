@@ -481,6 +481,7 @@ let currentUser = null;
 let appStarted = false;
 let editContext = null;
 let deleteContext = null;
+let detailSwipeStart = null;
 
 /* ================= Storage helpers ================= */
 function activeStoreKey(){ return currentUser ? STORE_KEY+':'+currentUser.id : STORE_KEY; }
@@ -654,6 +655,22 @@ async function logout(){
 
 window.addEventListener('online',()=>syncAll());
 window.addEventListener('offline',()=>setSyncState('Đang ngoại tuyến'));
+document.addEventListener('touchstart',event=>{
+  if(!statsDetailType || event.touches.length!==1) return;
+  const touch=event.touches[0];
+  if(touch.clientX>55) return;
+  detailSwipeStart={x:touch.clientX,y:touch.clientY,time:Date.now()};
+},{passive:true});
+document.addEventListener('touchend',event=>{
+  if(!detailSwipeStart || !statsDetailType || !event.changedTouches.length){ detailSwipeStart=null; return; }
+  const touch=event.changedTouches[0];
+  const dx=touch.clientX-detailSwipeStart.x;
+  const dy=Math.abs(touch.clientY-detailSwipeStart.y);
+  const duration=Date.now()-detailSwipeStart.time;
+  detailSwipeStart=null;
+  if(dx>=80 && dy<=60 && duration<=700) closeStatsDetail();
+},{passive:true});
+document.addEventListener('touchcancel',()=>{ detailSwipeStart=null; },{passive:true});
 
 /* ================= Date helpers ================= */
 function pad(n){ return n<10 ? '0'+n : ''+n; }
