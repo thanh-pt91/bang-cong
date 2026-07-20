@@ -430,7 +430,7 @@
     <div class="modal-sub">Cập nhật số tiền và thông tin khách hàng.</div>
     <div class="modal-field"><label for="edit-amount">Số tiền dịch vụ</label><input id="edit-amount" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off"></div>
     <div class="modal-field"><label for="edit-name">Tên khách hàng</label><input id="edit-name" type="text" maxlength="80" autocomplete="off"></div>
-    <div class="modal-field"><label for="edit-code">MSKH</label><input id="edit-code" type="text" maxlength="40" autocomplete="off" autocapitalize="characters"></div>
+    <div class="modal-field"><label for="edit-code">MSKH</label><input id="edit-code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="40" autocomplete="off"></div>
     <div class="modal-error" id="edit-error"></div>
     <div class="modal-actions"><button class="modal-cancel" onclick="closeModal('edit-modal')">Hủy</button><button class="modal-primary" onclick="saveEditEntry()">Lưu thay đổi</button></div>
   </div>
@@ -885,7 +885,7 @@ function renderEntryTab(){
       </div>
       <div class="customer-field">
         <label for="customer-code">MSKH (không bắt buộc)</label>
-        <input id="customer-code" type="text" maxlength="40" autocomplete="off" autocapitalize="characters"
+        <input id="customer-code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="40" autocomplete="off"
           placeholder="Nhập MSKH" value="${escapeHtml(pendingCustomerCode)}"
           oninput="pendingCustomerCode=this.value">
       </div>
