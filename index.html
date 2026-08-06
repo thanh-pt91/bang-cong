@@ -65,6 +65,8 @@
   #auth-error{min-height:18px; margin-top:12px; color:var(--danger); font-size:12px; text-align:center;}
   .account-tools{display:flex; align-items:center; gap:8px;}
   #sync-state{font-size:10.5px; color:var(--ink-soft); cursor:pointer; padding:5px 2px;}
+  body.test-mode #sync-state{color:var(--rose-deep); font-weight:700;}
+  body.test-mode .logout-btn{display:none;}
   .logout-btn{border:1px solid var(--line); background:var(--card); color:var(--ink-soft); border-radius:10px; padding:6px 9px; font-size:11px; font-weight:600;}
 
   header.top{
@@ -207,6 +209,9 @@
   .visit-entry-total .amount{font-family:'Fraunces',serif; font-size:15px; font-weight:600;}
   .visit-entry-total .commission{font-size:10.5px; color:var(--rose-deep); margin-top:2px;}
   .visit-entry-delete{width:28px; height:28px; flex-shrink:0; border:none; border-radius:50%; background:#F3E7E3; color:var(--danger);}
+  .visit-entry-actions{display:flex; gap:8px; padding:9px 0 1px 18px;}
+  .visit-entry-actions button{border:1px solid var(--line); border-radius:10px; padding:7px 10px; background:var(--bg); color:var(--ink-soft); font-size:10.5px; font-weight:600;}
+  .visit-entry-actions button:last-child{background:#F8ECEF; border-color:#EACFD6; color:var(--rose-deep);}
   .visit-service-row{display:flex; align-items:center; gap:8px; margin-left:18px; padding:9px 0 0 11px; border-left:2px solid var(--line);}
   .visit-service-row .dot{width:7px; height:7px; border-radius:50%; flex-shrink:0;}
   .visit-service-row .dot.tiem{background:var(--tiem);}
@@ -350,6 +355,12 @@
   .modal-field label{display:block; font-size:11px; color:var(--ink-soft); margin:0 2px 6px;}
   .modal-field input{width:100%; border:1.5px solid var(--line); background:var(--card); color:var(--ink); border-radius:13px; padding:12px 13px; outline:none; font:600 15px 'Inter',sans-serif;}
   .modal-field input:focus{border-color:var(--rose); box-shadow:0 0 0 3px rgba(179,105,122,.10);}
+  .modal-type-toggle{display:grid; grid-template-columns:1fr 1fr; gap:9px;}
+  .modal-type-toggle button{border:1.5px solid var(--line); border-radius:13px; padding:11px 8px; background:var(--card); color:var(--ink-soft); font-size:12px; font-weight:700;}
+  .modal-type-toggle button.selected.tiem{border-color:var(--tiem); background:var(--tiem-bg); color:var(--tiem);}
+  .modal-type-toggle button.selected.may{border-color:var(--may); background:var(--may-bg); color:#9A642B;}
+  .modal-customer-summary{border-radius:13px; padding:11px 12px; margin-bottom:14px; background:#F5EAE6; color:var(--ink-soft); font-size:12px; line-height:1.45;}
+  .modal-customer-summary strong{display:block; color:var(--ink); font-size:13px;}
   .modal-error{min-height:16px; color:var(--danger); font-size:11.5px; margin-top:-4px;}
   .modal-actions{display:flex; gap:10px; margin-top:16px;}
   .modal-actions button{flex:1; border:none; border-radius:13px; padding:12px; font-size:14px; font-weight:700;}
@@ -428,11 +439,33 @@
   <div class="app-modal" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
     <div class="modal-icon">✎</div><div class="modal-title" id="edit-modal-title">Chỉnh sửa đơn</div>
     <div class="modal-sub">Cập nhật số tiền và thông tin khách hàng.</div>
+    <div class="modal-field"><label>Loại dịch vụ</label><div class="modal-type-toggle"><button id="edit-type-tiem" type="button" onclick="selectEditType('tiem')">Tiêm · 6%</button><button id="edit-type-may" type="button" onclick="selectEditType('may')">Bắn máy · 8%</button></div></div>
     <div class="modal-field"><label for="edit-amount">Số tiền dịch vụ</label><input id="edit-amount" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off"></div>
     <div class="modal-field"><label for="edit-name">Tên khách hàng</label><input id="edit-name" type="text" maxlength="80" autocomplete="off"></div>
     <div class="modal-field"><label for="edit-code">MSKH</label><input id="edit-code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="40" autocomplete="off"></div>
     <div class="modal-error" id="edit-error"></div>
     <div class="modal-actions"><button class="modal-cancel" onclick="closeModal('edit-modal')">Hủy</button><button class="modal-primary" onclick="saveEditEntry()">Lưu thay đổi</button></div>
+  </div>
+</div>
+<div class="modal-backdrop" id="add-service-modal" onclick="backdropClose(event,'add-service-modal')">
+  <div class="app-modal" role="dialog" aria-modal="true" aria-labelledby="add-service-title">
+    <div class="modal-icon">＋</div><div class="modal-title" id="add-service-title">Thêm dịch vụ</div>
+    <div class="modal-sub">Dịch vụ mới sẽ được thêm vào đúng lượt khách này.</div>
+    <div class="modal-customer-summary" id="add-service-customer"></div>
+    <div class="modal-field"><label>Loại dịch vụ</label><div class="modal-type-toggle"><button id="add-type-tiem" type="button" onclick="selectAddServiceType('tiem')">Tiêm · 6%</button><button id="add-type-may" type="button" onclick="selectAddServiceType('may')">Bắn máy · 8%</button></div></div>
+    <div class="modal-field"><label for="add-service-amount">Số tiền dịch vụ</label><input id="add-service-amount" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Nhập số tiền"></div>
+    <div class="modal-error" id="add-service-error"></div>
+    <div class="modal-actions"><button class="modal-cancel" onclick="closeModal('add-service-modal')">Hủy</button><button class="modal-primary" onclick="saveAddedService()">Thêm dịch vụ</button></div>
+  </div>
+</div>
+<div class="modal-backdrop" id="move-visit-modal" onclick="backdropClose(event,'move-visit-modal')">
+  <div class="app-modal" role="dialog" aria-modal="true" aria-labelledby="move-visit-title">
+    <div class="modal-icon">▣</div><div class="modal-title" id="move-visit-title">Đổi ngày thực hiện</div>
+    <div class="modal-sub">Chỉ khách được chọn và toàn bộ dịch vụ của khách đó được chuyển sang ngày mới.</div>
+    <div class="modal-customer-summary" id="move-visit-customer"></div>
+    <div class="modal-field"><label for="move-visit-date">Ngày thực hiện mới</label><input id="move-visit-date" type="date"></div>
+    <div class="modal-error" id="move-visit-error"></div>
+    <div class="modal-actions"><button class="modal-cancel" onclick="closeModal('move-visit-modal')">Hủy</button><button class="modal-primary" onclick="saveMovedVisit()">Chuyển ngày</button></div>
   </div>
 </div>
 <div class="modal-backdrop" id="delete-modal" onclick="backdropClose(event,'delete-modal')">
@@ -465,6 +498,7 @@
 const RATES = { tiem: 0.06, may: 0.08 };
 const LABELS = { tiem: 'Dịch vụ tiêm', may: 'Dịch vụ bắn máy' };
 const STORE_KEY = 'entries-store';
+const TEST_MODE = new URLSearchParams(window.location.search).get('test') === '1';
 const SUPABASE_URL = 'https://mcmpxhqbjixnxbwuxpjv.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_tZzdGmF987bN4lr-U8yicA_QL0q9Oyh';
 const dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
@@ -489,16 +523,31 @@ let toastTimer = null;
 let currentUser = null;
 let appStarted = false;
 let editContext = null;
+let editSelectedType = 'tiem';
+let addServiceContext = null;
+let addServiceType = 'tiem';
+let moveVisitContext = null;
 let deleteContext = null;
 let detailSwipeStart = null;
 
 /* ================= Storage helpers ================= */
-function activeStoreKey(){ return currentUser ? STORE_KEY+':'+currentUser.id : STORE_KEY; }
+function activeStoreKey(){
+  if(TEST_MODE) return STORE_KEY+':test:'+(currentUser ? currentUser.id : 'guest');
+  return currentUser ? STORE_KEY+':'+currentUser.id : STORE_KEY;
+}
 async function loadStore(){
   try{
     const scoped = localStorage.getItem(activeStoreKey());
-    const legacy = localStorage.getItem(STORE_KEY);
-    store = JSON.parse(scoped || legacy || '{}');
+    let liveCopy = null;
+    if(TEST_MODE){
+      const liveKey = Object.keys(localStorage).find(key=>key.startsWith(STORE_KEY+':') && !key.startsWith(STORE_KEY+':test:') && !key.endsWith(':deletes'));
+      liveCopy = liveKey ? localStorage.getItem(liveKey) : localStorage.getItem(STORE_KEY);
+    }else{
+      const liveKey = currentUser ? STORE_KEY+':'+currentUser.id : STORE_KEY;
+      liveCopy = localStorage.getItem(liveKey) || localStorage.getItem(STORE_KEY);
+    }
+    store = JSON.parse(scoped || liveCopy || '{}');
+    if(TEST_MODE && !scoped) localStorage.setItem(activeStoreKey(),JSON.stringify(store));
   }catch(e){
     store = {};
   }
@@ -524,12 +573,14 @@ function remoteRow(entry, dateKey){
     customer_code: entry.customerCode || null,
     amount: Number(entry.amount),
     commission_rate: RATES[entry.type],
-    created_at: new Date(entry.ts || Date.now()).toISOString()
+    created_at: new Date(entry.ts || Date.now()).toISOString(),
+    updated_at: new Date(entry.updatedAt || Date.now()).toISOString()
   };
 }
 
 async function syncEntry(entry, dateKey){
   entry.updatedAt=Date.now();
+  if(TEST_MODE){ await saveStore(); setSyncState('Thử nghiệm • Không đồng bộ'); return true; }
   const queueKey=activeStoreKey()+':deletes';
   const pending=JSON.parse(localStorage.getItem(queueKey)||'[]');
   localStorage.setItem(queueKey,JSON.stringify(pending.filter(id=>id!==entry.id)));
@@ -542,6 +593,7 @@ async function syncEntry(entry, dateKey){
 }
 
 async function removeRemoteEntry(id){
+  if(TEST_MODE){ setSyncState('Thử nghiệm • Không đồng bộ'); return true; }
   const queueKey=activeStoreKey()+':deletes';
   const pending=JSON.parse(localStorage.getItem(queueKey)||'[]');
   if(!pending.includes(id)) pending.push(id);
@@ -590,6 +642,7 @@ async function syncAllLegacy(){
 }
 
 async function syncAll(){
+  if(TEST_MODE) return setSyncState('Thử nghiệm • Không đồng bộ');
   if(!currentUser || !navigator.onLine) return setSyncState('Đang ngoại tuyến');
   setSyncState('Đang đồng bộ…');
   const queueKey=activeStoreKey()+':deletes';
@@ -638,9 +691,11 @@ async function syncAll(){
 async function startApp(user){
   currentUser=user;
   document.body.classList.add('authenticated');
+  if(TEST_MODE){ document.body.classList.add('test-mode'); document.title='Bảng Công — Thử nghiệm'; }
   await loadStore();
   if(!appStarted){ render(); appStarted=true; }
-  await syncAll();
+  if(TEST_MODE) setSyncState('Thử nghiệm • Không đồng bộ');
+  else await syncAll();
 }
 
 async function login(event){
@@ -657,6 +712,7 @@ async function login(event){
 }
 
 async function logout(){
+  if(TEST_MODE) return;
   await dbClient.auth.signOut();
   currentUser=null; store={}; appStarted=false;
   document.body.classList.remove('authenticated');
@@ -944,6 +1000,10 @@ function renderEntryTab(){
           </div>
           <div class="visit-entry-total"><div class="amount">${fmtVND(visitRevenue)}</div><div class="commission">+ ${fmtVND(visitCommission)} hoa hồng</div></div>
           <button class="visit-entry-delete" aria-label="Xóa lượt khách" onclick="deleteVisit('${keyOf(entryDate)}','${visit.visitId}')">×</button>
+        </div>
+        <div class="visit-entry-actions">
+          <button onclick="openMoveVisit('${keyOf(entryDate)}','${visit.visitId}')">▣ Đổi ngày</button>
+          <button onclick="openAddService('${keyOf(entryDate)}','${visit.visitId}')">＋ Dịch vụ</button>
         </div>
         ${visit.entries.map(e=>`<div class="visit-service-row">
           <span class="dot ${e.type}"></span>
@@ -1267,6 +1327,8 @@ function editEntry(key,id){
   const entry=(store[key]||[]).find(item=>item.id===id);
   if(!entry) return;
   editContext={key,id};
+  editSelectedType=entry.type;
+  selectEditType(entry.type);
   document.getElementById('edit-amount').value=String(entry.amount);
   document.getElementById('edit-name').value=entry.customerName||'';
   document.getElementById('edit-code').value=entry.customerCode||'';
@@ -1286,15 +1348,143 @@ async function saveEditEntry(){
     return;
   }
   entry.amount=amount;
+  entry.type=editSelectedType;
   const customerName=document.getElementById('edit-name').value.trim();
   const customerCode=document.getElementById('edit-code').value.trim();
   const visitId=visitKeyOf(entry);
   const visitEntries=(store[key]||[]).filter(item=>visitKeyOf(item)===visitId);
-  visitEntries.forEach(item=>{ item.customerName=customerName; item.customerCode=customerCode; });
+  const updatedAt=Date.now();
+  visitEntries.forEach(item=>{ item.customerName=customerName; item.customerCode=customerCode; item.updatedAt=updatedAt; });
   editContext=null;
   closeModal('edit-modal');
   render(); await saveStore(); await Promise.all(visitEntries.map(item=>syncEntry(item,key)));
   showToast('Đã cập nhật đơn');
+}
+
+function updateModalTypeButtons(prefix,type){
+  ['tiem','may'].forEach(value=>{
+    const button=document.getElementById(prefix+'-type-'+value);
+    if(button) button.className=(value===type ? 'selected '+value : '');
+  });
+}
+
+function selectEditType(type){
+  editSelectedType=type;
+  updateModalTypeButtons('edit',type);
+}
+
+function selectAddServiceType(type){
+  addServiceType=type;
+  updateModalTypeButtons('add',type);
+}
+
+function visitEntriesAt(key,visitId){
+  return (store[key]||[]).filter(item=>visitKeyOf(item)===visitId);
+}
+
+function visitCustomerSummary(entries){
+  const first=entries[0]||{};
+  const name=first.customerName ? escapeHtml(first.customerName) : 'Khách lẻ';
+  const code=first.customerCode ? 'MSKH: '+escapeHtml(first.customerCode)+' · ' : '';
+  return `<strong>${name}</strong>${code}${entries.length} dịch vụ`;
+}
+
+function openAddService(key,visitId){
+  const entries=visitEntriesAt(key,visitId);
+  if(!entries.length) return;
+  addServiceContext={key,visitId};
+  addServiceType='tiem';
+  document.getElementById('add-service-customer').innerHTML=visitCustomerSummary(entries);
+  document.getElementById('add-service-amount').value='';
+  document.getElementById('add-service-error').textContent='';
+  selectAddServiceType(addServiceType);
+  openModal('add-service-modal');
+  setTimeout(()=>document.getElementById('add-service-amount').focus(),220);
+}
+
+async function saveAddedService(){
+  if(!addServiceContext) return;
+  const amount=Number(document.getElementById('add-service-amount').value.replace(/[^0-9]/g,''));
+  if(!Number.isFinite(amount)||amount<=0){
+    document.getElementById('add-service-error').textContent='Vui lòng nhập số tiền lớn hơn 0.';
+    return;
+  }
+  const {key}=addServiceContext;
+  let visitId=addServiceContext.visitId;
+  const existing=visitEntriesAt(key,visitId);
+  if(!existing.length) return closeModal('add-service-modal');
+  const oldIds=[];
+  const entriesToSync=[];
+  const now=Date.now();
+
+  if(!/^v\d+_[a-z0-9]+$/i.test(visitId)){
+    visitId='v'+now+'_'+Math.random().toString(36).slice(2,8);
+    existing.forEach((item,index)=>{
+      oldIds.push(item.id);
+      item.id=visitId+'_'+index;
+      item.visitId=visitId;
+      item.updatedAt=now+index;
+      entriesToSync.push(item);
+    });
+  }
+
+  const first=existing[0];
+  const entry={
+    id:visitId+'_'+(now+existing.length), visitId,
+    type:addServiceType, amount,
+    customerName:first.customerName||'', customerCode:first.customerCode||'',
+    ts:now+existing.length, updatedAt:now+existing.length
+  };
+  store[key].push(entry);
+  entriesToSync.push(entry);
+  addServiceContext=null;
+  closeModal('add-service-modal');
+  render();
+  await saveStore();
+  if(oldIds.length) await Promise.all(oldIds.map(id=>removeRemoteEntry(id)));
+  await Promise.all(entriesToSync.map(item=>syncEntry(item,key)));
+  showToast('Đã thêm dịch vụ');
+}
+
+function openMoveVisit(key,visitId){
+  const entries=visitEntriesAt(key,visitId);
+  if(!entries.length) return;
+  moveVisitContext={key,visitId};
+  document.getElementById('move-visit-customer').innerHTML=visitCustomerSummary(entries);
+  document.getElementById('move-visit-date').value=key;
+  document.getElementById('move-visit-error').textContent='';
+  openModal('move-visit-modal');
+}
+
+async function saveMovedVisit(){
+  if(!moveVisitContext) return;
+  const targetKey=document.getElementById('move-visit-date').value;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(targetKey)){
+    document.getElementById('move-visit-error').textContent='Vui lòng chọn ngày thực hiện mới.';
+    return;
+  }
+  const {key,visitId}=moveVisitContext;
+  if(targetKey===key){
+    moveVisitContext=null;
+    closeModal('move-visit-modal');
+    return showToast('Ngày thực hiện không thay đổi');
+  }
+  const entries=visitEntriesAt(key,visitId);
+  if(!entries.length) return closeModal('move-visit-modal');
+  const ids=new Set(entries.map(item=>item.id));
+  store[key]=(store[key]||[]).filter(item=>!ids.has(item.id));
+  if(!store[targetKey]) store[targetKey]=[];
+  const updatedAt=Date.now();
+  entries.forEach(item=>item.updatedAt=updatedAt);
+  store[targetKey].push(...entries);
+  const [year,month,day]=targetKey.split('-').map(Number);
+  entryDate=new Date(year,month-1,day);
+  moveVisitContext=null;
+  closeModal('move-visit-modal');
+  render();
+  await saveStore();
+  await Promise.all(entries.map(item=>syncEntry(item,targetKey)));
+  showToast('Đã chuyển khách sang ngày mới');
 }
 
 function deleteEntry(key,id){
@@ -1354,6 +1544,10 @@ document.getElementById('toast-undo').onclick = undoDelete;
 
 /* ================= Init ================= */
 (async function init(){
+  if(TEST_MODE){
+    await startApp({id:'local-test-user',email:'test@local'});
+    return;
+  }
   const {data,error}=await dbClient.auth.getSession();
   if(error) console.error(error);
   if(data && data.session && data.session.user) await startApp(data.session.user);
