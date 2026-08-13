@@ -217,6 +217,28 @@
   .visit-entry-actions .bill-check-inline.checked{background:#2E9B59; border-color:#2E9B59; color:#fff;}
   .daily-bill-check{margin:-2px 2px 9px; color:var(--ink-soft); font-size:10.5px;}
   .daily-bill-check strong{color:#26834A;}
+  .customer-search{margin:2px 0 14px;}
+  .customer-search-box{display:flex; align-items:center; gap:9px; background:var(--card); border:1.5px solid var(--line); border-radius:14px; padding:10px 12px; box-shadow:var(--shadow);}
+  .customer-search-box:focus-within{border-color:var(--rose);}
+  .customer-search-icon{color:var(--rose-deep); font-size:16px; flex-shrink:0;}
+  .customer-search-box input{flex:1; min-width:0; border:none; outline:none; background:transparent; color:var(--ink); font:600 13.5px 'Inter',sans-serif; padding:0;}
+  .customer-search-box input::placeholder{color:#B9AAA4; font-weight:500;}
+  .customer-search-clear{border:none; background:#F3E7E3; color:var(--rose-deep); width:25px; height:25px; border-radius:50%; font-size:14px; flex-shrink:0;}
+  .customer-search-meta{font-size:10.5px; color:var(--ink-soft); margin:8px 2px 6px;}
+  .customer-search-result{display:flex; align-items:center; gap:10px; background:var(--card); border-radius:14px; padding:11px 12px; margin-bottom:7px; box-shadow:var(--shadow);}
+  .customer-search-info{flex:1; min-width:0;}
+  .customer-search-name{font-size:13px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .customer-search-detail{font-size:10.5px; color:var(--ink-soft); margin-top:3px;}
+  .customer-search-money{text-align:right; flex-shrink:0;}
+  .customer-search-money strong{display:block; font-family:'Fraunces',serif; font-size:13px;}
+  .customer-search-open{border:1px solid #EACFD6; background:#F8ECEF; color:var(--rose-deep); border-radius:9px; padding:7px 9px; font-size:10.5px; font-weight:700; flex-shrink:0;}
+  .customer-search-empty{background:var(--card); border-radius:14px; padding:18px 12px; color:var(--ink-soft); font-size:12px; text-align:center; box-shadow:var(--shadow);}
+  .search-page-head{margin:4px 2px 18px;}
+  .search-page-title{font-family:'Fraunces',serif; font-size:22px; font-weight:600;}
+  .search-page-sub{font-size:11.5px; color:var(--ink-soft); margin-top:3px; line-height:1.45;}
+  .search-page .customer-search{margin-bottom:0;}
+  .customer-search-start{padding:42px 18px; text-align:center; color:var(--ink-soft); font-size:12.5px; line-height:1.5;}
+  .customer-search-start .icon{font-size:27px; color:var(--rose); margin-bottom:8px;}
   .visit-service-row{display:flex; align-items:center; gap:8px; margin-left:18px; padding:9px 0 0 11px; border-left:2px solid var(--line);}
   .visit-service-row .dot{width:7px; height:7px; border-radius:50%; flex-shrink:0;}
   .visit-service-row .dot.tiem{background:var(--tiem);}
@@ -543,6 +565,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
       Nhập
     </button>
+    <button id="tab-search" onclick="setTab('search')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg>
+      Tìm kiếm
+    </button>
     <button id="tab-stats" onclick="setTab('stats')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V10M12 19V5M20 19v-7"/></svg>
       Thống kê
@@ -577,6 +603,7 @@ let pendingType = 'tiem';
 let pendingDigits = '';
 let pendingCustomerName = '';
 let pendingCustomerCode = '';
+let customerSearch = '';
 let pendingServices = [];
 let lastDeleted = null;
 let toastTimer = null;
@@ -1002,13 +1029,15 @@ function setTab(t){
   if(t!=='stats') statsDetailType=null;
   if(t!=='stats') billManagerOpen=false;
   document.getElementById('tab-entry').classList.toggle('active', t==='entry');
+  document.getElementById('tab-search').classList.toggle('active', t==='search');
   document.getElementById('tab-stats').classList.toggle('active', t==='stats');
   render();
+  window.scrollTo(0,0);
 }
 
 function render(){
   const main = document.getElementById('main');
-  main.innerHTML = tab==='entry' ? renderEntryTab() : (billManagerOpen ? renderBillManager() : (statsDetailType ? renderStatsDetail() : renderStatsTab()));
+  main.innerHTML = tab==='entry' ? renderEntryTab() : (tab==='search' ? renderSearchTab() : (billManagerOpen ? renderBillManager() : (statsDetailType ? renderStatsDetail() : renderStatsTab())));
   attachEntryTabEvents();
 }
 
@@ -1044,6 +1073,85 @@ function groupVisits(entries){
     byId[visitId].ts=Math.max(byId[visitId].ts||0,entry.ts||0);
   });
   return groups.sort((a,b)=>b.ts-a.ts);
+}
+
+function normalizeCustomerSearch(value){
+  return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/Đ/g,'d').toLocaleLowerCase('vi-VN').trim();
+}
+
+function customerSearchMatches(){
+  const query=normalizeCustomerSearch(customerSearch);
+  if(!query) return [];
+  const matches=[];
+  Object.keys(store).forEach(key=>{
+    groupVisits(store[key]||[]).forEach(visit=>{
+      const first=visit.entries[0]||{};
+      const code=normalizeCustomerSearch(first.customerCode);
+      const name=normalizeCustomerSearch(first.customerName);
+      if(code.includes(query)||name.includes(query)) matches.push({...visit,key,first});
+    });
+  });
+  return matches.sort((a,b)=>b.key.localeCompare(a.key)||(b.ts||0)-(a.ts||0)).slice(0,50);
+}
+
+function renderCustomerSearchResults(){
+  const query=customerSearch.trim();
+  if(!query) return '';
+  const matches=customerSearchMatches();
+  if(!matches.length) return `<div class="customer-search-empty">Không tìm thấy tên hoặc MSKH “${escapeHtml(query)}”.</div>`;
+  return `<div class="customer-search-meta">Tìm thấy ${matches.length} lượt khách</div>${matches.map(visit=>{
+    const total=visit.entries.reduce((sum,item)=>sum+item.amount,0);
+    return `<div class="customer-search-result">
+      <div class="customer-search-info">
+        <div class="customer-search-name">${visit.first.customerName?escapeHtml(visit.first.customerName):'Khách lẻ'}</div>
+        <div class="customer-search-detail">MSKH: ${escapeHtml(visit.first.customerCode)} · ${formatDateKey(visit.key)} · ${visit.entries.length} dịch vụ</div>
+      </div>
+      <div class="customer-search-money"><strong>${fmtVND(total)}</strong></div>
+      <button class="customer-search-open" onclick="openCustomerSearchDate('${visit.key}')">Mở ngày</button>
+    </div>`;
+  }).join('')}`;
+}
+
+function updateCustomerSearch(value){
+  customerSearch=value;
+  const results=document.getElementById('customer-search-results');
+  const clear=document.getElementById('customer-search-clear');
+  if(results) results.innerHTML=customerSearch.trim() ? renderCustomerSearchResults() : '<div class="customer-search-start"><div class="icon">⌕</div>Nhập tên hoặc MSKH để bắt đầu tìm kiếm.</div>';
+  if(clear) clear.hidden=!customerSearch;
+}
+
+function clearCustomerSearch(){
+  customerSearch='';
+  const input=document.getElementById('customer-search-input');
+  if(input){input.value=''; input.focus();}
+  updateCustomerSearch('');
+}
+
+function openCustomerSearchDate(key){
+  const [year,month,day]=key.split('-').map(Number);
+  entryDate=new Date(year,month-1,day);
+  customerSearch='';
+  setTab('entry');
+  const title=document.getElementById('daily-list-title');
+  if(title) title.scrollIntoView({block:'start'});
+}
+
+function renderSearchTab(){
+  return `<div class="search-page">
+    <div class="search-page-head">
+      <div class="search-page-title">Tìm khách hàng</div>
+      <div class="search-page-sub">Tìm theo tên hoặc MSKH trên toàn bộ dữ liệu đã lưu.</div>
+    </div>
+    <div class="customer-search">
+      <div class="customer-search-box">
+        <span class="customer-search-icon">⌕</span>
+        <input id="customer-search-input" type="search" inputmode="search" autocomplete="off" maxlength="80"
+          placeholder="Nhập tên hoặc MSKH" value="${escapeHtml(customerSearch)}" oninput="updateCustomerSearch(this.value)">
+        <button id="customer-search-clear" class="customer-search-clear" ${customerSearch?'':'hidden'} aria-label="Xóa tìm kiếm" onclick="clearCustomerSearch()">×</button>
+      </div>
+      <div id="customer-search-results">${customerSearch.trim() ? renderCustomerSearchResults() : '<div class="customer-search-start"><div class="icon">⌕</div>Nhập tên hoặc MSKH để bắt đầu tìm kiếm.</div>'}</div>
+    </div>
+  </div>`;
 }
 
 function renderEntryTab(){
@@ -1123,7 +1231,7 @@ function renderEntryTab(){
       <div class="box hi"><div class="k">Hoa hồng ngày</div><div class="v tnum">${fmtVND(agg.commission)}</div></div>
     </div>
 
-    <div class="listtitle">Danh sách hôm nay (${visits.length} lượt · ${list.length} dịch vụ)</div>
+    <div id="daily-list-title" class="listtitle">Danh sách ${sameDay(entryDate,new Date())?'hôm nay':fmtDate(entryDate)} (${visits.length} lượt · ${list.length} dịch vụ)</div>
     ${visits.length?`<div class="daily-bill-check">Bill trong ngày: <strong>${dayBillsChecked}/${visits.length} đã check</strong></div>`:''}
     ${visits.length===0 ? `
       <div class="empty"><div class="ic">🗒️</div>Chưa có đơn nào trong ngày này.<br>Nhập số tiền phía trên để bắt đầu.</div>
