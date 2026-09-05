@@ -733,8 +733,44 @@ function remoteRow(entry, dateKey){
   };
 }
 
+function rowToEntry(row){
+  return {
+    id:row.id, visitId:visitKeyOf({id:row.id}), type:row.service_type, amount:Number(row.amount),
+    customerName:row.customer_name||'', customerCode:row.customer_code||'',
+    ts:new Date(row.created_at).getTime(), updatedAt:new Date(row.updated_at||row.created_at).getTime()
+  };
+}
+
+function addEntryToStore(target,dateKey,entry){
+  if(!target[dateKey]) target[dateKey]=[];
+  target[dateKey].push(entry);
+}
+
+function buildRemoteStore(rows){
+  const remoteStore={};
+  (rows||[]).forEach(row=>addEntryToStore(remoteStore,row.work_date,rowToEntry(row)));
+  return remoteStore;
+}
+
+function mergeStoresByFreshness(localStore,remoteStore){
+  const byId={};
+  const put=(dateKey,entry,preferOnTie=false)=>{
+    if(!entry || !entry.id) return;
+    const candidate={dateKey,entry:{...entry}};
+    const current=byId[entry.id];
+    const candidateTime=Number(entry.updatedAt||entry.ts||0);
+    const currentTime=current ? Number(current.entry.updatedAt||current.entry.ts||0) : -1;
+    if(!current || candidateTime>currentTime || (preferOnTie && candidateTime===currentTime)) byId[entry.id]=candidate;
+  };
+  Object.keys(localStore||{}).forEach(dateKey=>(localStore[dateKey]||[]).forEach(entry=>put(dateKey,entry,false)));
+  Object.keys(remoteStore||{}).forEach(dateKey=>(remoteStore[dateKey]||[]).forEach(entry=>put(dateKey,entry,true)));
+  const merged={};
+  Object.values(byId).forEach(item=>addEntryToStore(merged,item.dateKey,item.entry));
+  return merged;
+}
+
 async function syncEntry(entry, dateKey){
-  entry.updatedAt=Date.now();
+  if(!entry.updatedAt) entry.updatedAt=Date.now();
   if(TEST_MODE){ await saveStore(); setSyncState('Thử nghiệm • Không đồng bộ'); return true; }
   const queueKey=activeStoreKey()+':deletes';
   const pending=JSON.parse(localStorage.getItem(queueKey)||'[]');
@@ -800,6 +836,7 @@ async function syncAll(){
   if(TEST_MODE) return setSyncState('Thử nghiệm • Không đồng bộ');
   if(!currentUser || !navigator.onLine) return setSyncState('Đang ngoại tuyến');
   setSyncState('Đang đồng bộ…');
+  const localSnapshot=JSON.parse(JSON.stringify(store||{}));
   const queueKey=activeStoreKey()+':deletes';
   const pendingDeletes=JSON.parse(localStorage.getItem(queueKey)||'[]');
   if(pendingDeletes.length){
@@ -827,16 +864,8 @@ async function syncAll(){
 
   const {data,error}=await dbClient.from('entries').select(columns).order('created_at',{ascending:true});
   if(error){ console.error(error); setSyncState('Lỗi đồng bộ'); return; }
-  const remoteStore={};
-  (data||[]).forEach(row=>{
-    if(!remoteStore[row.work_date]) remoteStore[row.work_date]=[];
-    remoteStore[row.work_date].push({
-      id:row.id, visitId:visitKeyOf({id:row.id}), type:row.service_type, amount:Number(row.amount),
-      customerName:row.customer_name||'', customerCode:row.customer_code||'',
-      ts:new Date(row.created_at).getTime(), updatedAt:new Date(row.updated_at||row.created_at).getTime()
-    });
-  });
-  store=remoteStore;
+  const remoteStore=buildRemoteStore(data);
+  store=mergeStoresByFreshness(localSnapshot,remoteStore);
   await saveStore();
   localStorage.removeItem(STORE_KEY);
   render();
@@ -1509,7 +1538,8 @@ async function addEntryLegacy(){
     amount,
     customerName: pendingCustomerName.trim(),
     customerCode: pendingCustomerCode.trim(),
-    ts: Date.now()
+    ts: Date.now(),
+    updatedAt: Date.now()
   };
   store[key].push(entry);
   pendingDigits='';
@@ -1555,7 +1585,8 @@ async function saveVisit(){
     amount:service.amount,
     customerName,
     customerCode,
-    ts:timestamp+index
+    ts:timestamp+index,
+    updatedAt:timestamp+index
   }));
   store[key].push(...entries);
   const count=entries.length;
