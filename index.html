@@ -769,6 +769,21 @@ function mergeStoresByFreshness(localStore,remoteStore){
   return merged;
 }
 
+async function fetchAllEntries(columns){
+  const pageSize=1000;
+  const rows=[];
+  for(let from=0;;from+=pageSize){
+    const {data,error}=await dbClient.from('entries')
+      .select(columns)
+      .order('created_at',{ascending:true})
+      .range(from,from+pageSize-1);
+    if(error) return {data:null,error};
+    rows.push(...(data||[]));
+    if(!data || data.length<pageSize) break;
+  }
+  return {data:rows,error:null};
+}
+
 async function syncEntry(entry, dateKey){
   if(!entry.updatedAt) entry.updatedAt=Date.now();
   if(TEST_MODE){ await saveStore(); setSyncState('Thử nghiệm • Không đồng bộ'); return true; }
@@ -814,18 +829,9 @@ async function syncAllLegacy(){
     const {error:upsertError}=await dbClient.from('entries').upsert(localRows,{onConflict:'id'});
     if(upsertError){ console.error(upsertError); setSyncState('Lỗi đồng bộ'); return; }
   }
-  const {data,error}=await dbClient.from('entries').select('id,work_date,service_type,customer_name,customer_code,amount,created_at').order('created_at',{ascending:true});
+  const {data,error}=await fetchAllEntries('id,work_date,service_type,customer_name,customer_code,amount,created_at,updated_at');
   if(error){ console.error(error); setSyncState('Lỗi đồng bộ'); return; }
-  const remoteStore={};
-  (data||[]).forEach(row=>{
-    if(!remoteStore[row.work_date]) remoteStore[row.work_date]=[];
-    remoteStore[row.work_date].push({
-      id:row.id, visitId:visitKeyOf({id:row.id}), type:row.service_type, amount:Number(row.amount),
-      customerName:row.customer_name||'', customerCode:row.customer_code||'',
-      ts:new Date(row.created_at).getTime()
-    });
-  });
-  store=remoteStore;
+  store=buildRemoteStore(data);
   await saveStore();
   localStorage.removeItem(STORE_KEY);
   render();
@@ -846,7 +852,7 @@ async function syncAll(){
   }
 
   const columns='id,work_date,service_type,customer_name,customer_code,amount,created_at,updated_at';
-  const {data:remoteBefore,error:readError}=await dbClient.from('entries').select(columns);
+  const {data:remoteBefore,error:readError}=await fetchAllEntries(columns);
   if(readError){ console.error(readError); setSyncState('Lỗi đồng bộ'); return; }
   const remoteById={};
   (remoteBefore||[]).forEach(row=>remoteById[row.id]=row);
@@ -862,7 +868,7 @@ async function syncAll(){
     if(uploadError){ console.error(uploadError); setSyncState('Lỗi đồng bộ'); return; }
   }
 
-  const {data,error}=await dbClient.from('entries').select(columns).order('created_at',{ascending:true});
+  const {data,error}=await fetchAllEntries(columns);
   if(error){ console.error(error); setSyncState('Lỗi đồng bộ'); return; }
   const remoteStore=buildRemoteStore(data);
   store=mergeStoresByFreshness(localSnapshot,remoteStore);
