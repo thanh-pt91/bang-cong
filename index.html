@@ -249,6 +249,9 @@
   .customer-search-start{padding:42px 18px; text-align:center; color:var(--ink-soft); font-size:12.5px; line-height:1.5;}
   .customer-search-start .icon{font-size:27px; color:var(--rose); margin-bottom:8px;}
   .leader-section{margin-top:22px;}
+  .leader-tabs{display:flex;gap:4px;padding:4px;background:#F0E8E2;border-radius:13px;margin:0 0 11px;}
+  .leader-tabs button{flex:1;border:0;border-radius:10px;padding:9px 5px;background:transparent;color:var(--ink-soft);font:600 11px 'Inter',sans-serif;}
+  .leader-tabs button.active{background:var(--card);color:var(--rose-deep);box-shadow:0 2px 7px rgba(58,42,34,.08);}
   .leader-heading{display:flex;align-items:baseline;justify-content:space-between;margin:0 2px 9px;}
   .leader-title{font-size:14px;font-weight:700;color:var(--ink);}
   .leader-subtitle{font-size:10px;color:var(--ink-soft);}
@@ -647,6 +650,7 @@ let pendingCustomerName = '';
 let pendingCustomerCode = '';
 let customerSearch = '';
 let customerHistoryContext = null;
+let customerLeaderMetric = 'revenue';
 let pendingServices = [];
 let lastDeleted = null;
 let toastTimer = null;
@@ -1280,12 +1284,23 @@ function renderCustomerLeaderList(customers,metric){
 
 function renderCustomerLeaderboards(){
   const customers=customerLeaderboardData();
+  const metric=customerLeaderMetric==='services'?'services':'revenue';
+  const title=metric==='revenue'?'Top khách theo tổng tiền':'Top khách theo số dịch vụ';
   return `<section class="leader-section">
-    <div class="leader-heading"><div class="leader-title">Top khách hàng theo tổng tiền</div><div class="leader-subtitle">${customers.length} khách · vuốt để xem</div></div>
-    ${renderCustomerLeaderList(customers,'revenue')}
-    <div class="leader-heading" style="margin-top:20px"><div class="leader-title">Top khách hàng theo số dịch vụ</div><div class="leader-subtitle">${customers.length} khách · vuốt để xem</div></div>
-    ${renderCustomerLeaderList(customers,'services')}
+    <div class="leader-title" style="margin:0 2px 9px">Xếp hạng khách hàng</div>
+    <div class="leader-tabs" role="tablist" aria-label="Kiểu xếp hạng khách hàng">
+      <button role="tab" aria-selected="${metric==='revenue'}" class="${metric==='revenue'?'active':''}" onclick="setCustomerLeaderMetric('revenue')">Theo tổng tiền</button>
+      <button role="tab" aria-selected="${metric==='services'}" class="${metric==='services'?'active':''}" onclick="setCustomerLeaderMetric('services')">Theo số dịch vụ</button>
+    </div>
+    <div class="leader-heading"><div class="leader-title">${title}</div><div class="leader-subtitle">${customers.length} khách · vuốt để xem</div></div>
+    ${renderCustomerLeaderList(customers,metric)}
   </section>`;
+}
+
+function setCustomerLeaderMetric(metric){
+  if(metric!=='revenue'&&metric!=='services') return;
+  customerLeaderMetric=metric;
+  render();
 }
 
 function searchCustomerLeader(value){
