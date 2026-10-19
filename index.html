@@ -146,16 +146,25 @@
     box-shadow:var(--shadow); margin-bottom:16px;
   }
   .amount-display{
-    text-align:right; padding: 6px 4px 14px;
+    display:flex; align-items:flex-start; justify-content:space-between; gap:8px; min-height:82px; padding: 0 4px 14px;
   }
   .amount-display .val{
     font-family:'Fraunces', serif; font-size:34px; font-weight:600;
-    color:var(--ink);
+    color:var(--ink); margin-left:auto; padding-top:28px; text-align:right;
   }
   .amount-display .val.placeholder{color:#CBBEB8;}
   .amount-display .commission{
     font-size:12.5px; color:var(--rose-deep); font-weight:600; margin-top:2px;
   }
+  .bonus-toggle{display:flex;align-items:center;gap:6px;width:100%;margin:-6px 0 14px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink-soft);font:600 12px 'Inter',sans-serif;text-align:left}
+  .bonus-toggle .star{font-size:17px;color:#9A8B80}
+  .entrycard .bonus-toggle{width:auto;flex:none;margin:6px 0 0;padding:5px 10px;border-radius:24px;background:#FCFAF8;font-size:12px;white-space:nowrap}
+  .bonus-toggle.active{border-color:#E5B94C;background:#FFF8E4;color:#765A12}
+  .bonus-toggle.active .star{color:#E1AD25}
+  .bonus-toggle:disabled{opacity:.45}
+  .bonus-pill{display:inline-flex;align-items:center;color:#A77B12;font-weight:700}
+  .bonus-summary{display:flex;justify-content:space-between;align-items:center;margin:10px 0 16px;padding:11px 13px;border-radius:12px;background:#FFF8E4;color:#765A12;font-size:12px}
+  .bonus-summary strong{font-family:'Fraunces',serif;font-size:15px}
   .numpad{
     display:grid; grid-template-columns: repeat(3,1fr); gap:8px; margin-bottom:12px;
   }
@@ -239,6 +248,29 @@
   .search-page .customer-search{margin-bottom:0;}
   .customer-search-start{padding:42px 18px; text-align:center; color:var(--ink-soft); font-size:12.5px; line-height:1.5;}
   .customer-search-start .icon{font-size:27px; color:var(--rose); margin-bottom:8px;}
+  .leader-section{margin-top:22px;}
+  .leader-heading{display:flex;align-items:baseline;justify-content:space-between;margin:0 2px 9px;}
+  .leader-title{font-size:14px;font-weight:700;color:var(--ink);}
+  .leader-subtitle{font-size:10px;color:var(--ink-soft);}
+  .leader-list-scroll{max-height:340px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;scrollbar-width:thin;scrollbar-color:#D9C8BD transparent;border-radius:14px;padding:1px 5px 1px 1px;margin-right:-5px;}
+  .leader-list-scroll::-webkit-scrollbar{width:4px;}
+  .leader-list-scroll::-webkit-scrollbar-thumb{background:#D9C8BD;border-radius:8px;}
+  .leader-row{display:flex;align-items:center;gap:10px;background:var(--card);border-radius:14px;padding:11px 12px;margin-bottom:7px;box-shadow:var(--shadow);}
+  .leader-row{cursor:pointer;touch-action:manipulation;}
+  .leader-row:active{transform:scale(.99);}
+  .leader-rank{width:25px;height:25px;display:grid;place-items:center;border-radius:50%;background:#F3ECE7;color:var(--rose-deep);font-size:11px;font-weight:700;flex:none;}
+  .leader-row:first-of-type .leader-rank{background:#FBF0CC;color:#A77B12;}
+  .leader-info{min-width:0;flex:1;}
+  .leader-name{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .leader-meta{font-size:10px;color:var(--ink-soft);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .leader-value{text-align:right;flex:none;font-family:'Fraunces',serif;font-size:13px;font-weight:600;}
+  .leader-value small{display:block;font:10px 'Inter',sans-serif;color:var(--ink-soft);margin-top:2px;}
+  .leader-open{border:0;background:transparent;color:var(--rose-deep);font-size:18px;padding:2px;}
+  .customer-history-head{display:flex;align-items:center;gap:10px;margin:4px 0 15px;}
+  .customer-history-back{width:36px;height:36px;border:0;border-radius:12px;background:var(--card);color:var(--rose-deep);box-shadow:var(--shadow);font-size:20px;}
+  .customer-history-title{font-family:'Fraunces',serif;font-size:20px;font-weight:600;}
+  .customer-history-sub{font-size:11px;color:var(--ink-soft);margin-top:2px;}
+  .customer-history-date{font-size:11px;font-weight:700;color:var(--ink-soft);margin:15px 2px 7px;}
   .visit-service-row{display:flex; align-items:center; gap:8px; margin-left:18px; padding:9px 0 0 11px; border-left:2px solid var(--line);}
   .visit-service-row .dot{width:7px; height:7px; border-radius:50%; flex-shrink:0;}
   .visit-service-row .dot.tiem{background:var(--tiem);}
@@ -248,6 +280,9 @@
   .visit-service-com{font-size:9.5px; color:var(--ink-soft); margin-top:1px;}
   .visit-service-amount{font-family:'Fraunces',serif; font-size:12.5px; font-weight:600;}
   .visit-service-row .edit{width:25px; height:25px; font-size:11px;}
+  .visit-service-row .bonus-entry-toggle{width:27px;height:27px;border:0;border-radius:50%;background:#F6F1ED;color:#B7AAA2;font-size:13px;line-height:1;flex:none}
+  .visit-service-row .bonus-entry-toggle.active{background:#FBF0CC;color:#D5A52E}
+  .visit-service-row .bonus-entry-toggle:disabled{opacity:.45}
 
   /* ---- Summary strip ---- */
   .summary{
@@ -339,6 +374,8 @@
   .bd-row .stats .c{}
   .bd-row .stats .c .k{font-size:10.5px; color:var(--ink-soft);}
   .bd-row .stats .c .v{font-family:'Fraunces', serif; font-size:15px; font-weight:600;}
+  .bd-row.bonus-stat{background:#FFF8E4;}
+  .bd-row.bonus-stat .hd .name,.bd-row.bonus-stat .stats .c .v{color:#765A12;}
 
   .detail-top{display:flex; align-items:center; gap:11px; margin-bottom:15px;}
   .detail-back{width:38px; height:38px; border:none; border-radius:12px; background:var(--card); color:var(--rose-deep); box-shadow:var(--shadow); font-size:20px;}
@@ -497,6 +534,7 @@
     <div class="modal-sub">Cập nhật số tiền và thông tin khách hàng.</div>
     <div class="modal-field"><label>Loại dịch vụ</label><div class="modal-type-toggle"><button id="edit-type-tiem" type="button" onclick="selectEditType('tiem')">Tiêm · 6%</button><button id="edit-type-may" type="button" onclick="selectEditType('may')">Bắn máy · 8%</button></div></div>
     <div class="modal-field"><label for="edit-amount">Số tiền dịch vụ</label><input id="edit-amount" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off"></div>
+    <button id="edit-bonus-toggle" class="bonus-toggle" type="button" onclick="toggleEditBonus()"><span class="star">★</span><span>Bonus · áp dụng hoa hồng 2%</span></button>
     <div class="modal-field"><label for="edit-name">Tên khách hàng</label><input id="edit-name" type="text" maxlength="80" autocomplete="off"></div>
     <div class="modal-field"><label for="edit-code">MSKH</label><input id="edit-code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="40" autocomplete="off"></div>
     <div class="modal-error" id="edit-error"></div>
@@ -510,6 +548,7 @@
     <div class="modal-customer-summary" id="add-service-customer"></div>
     <div class="modal-field"><label>Loại dịch vụ</label><div class="modal-type-toggle"><button id="add-type-tiem" type="button" onclick="selectAddServiceType('tiem')">Tiêm · 6%</button><button id="add-type-may" type="button" onclick="selectAddServiceType('may')">Bắn máy · 8%</button></div></div>
     <div class="modal-field"><label for="add-service-amount">Số tiền dịch vụ</label><input id="add-service-amount" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Nhập số tiền"></div>
+    <button id="add-bonus-toggle" class="bonus-toggle" type="button" onclick="toggleAddServiceBonus()"><span class="star">★</span><span>Bonus · áp dụng hoa hồng 2%</span></button>
     <div class="modal-error" id="add-service-error"></div>
     <div class="modal-actions"><button class="modal-cancel" onclick="closeModal('add-service-modal')">Hủy</button><button class="modal-primary" onclick="saveAddedService()">Thêm dịch vụ</button></div>
   </div>
@@ -580,6 +619,8 @@
 <script>
 /* ================= Config ================= */
 const RATES = { tiem: 0.06, may: 0.08 };
+const BONUS_RATE = 0.02;
+function entryRate(entry){ return entry && entry.type==='tiem' && entry.bonus ? BONUS_RATE : RATES[entry.type]||0; }
 const LABELS = { tiem: 'Dịch vụ tiêm', may: 'Dịch vụ bắn máy' };
 const STORE_KEY = 'entries-store';
 const TEST_MODE = new URLSearchParams(window.location.search).get('test') === '1';
@@ -600,10 +641,12 @@ let statsMode = 'day';
 let statsAnchor = new Date();
 let statsDetailType = null;
 let pendingType = 'tiem';
+let pendingBonus = false;
 let pendingDigits = '';
 let pendingCustomerName = '';
 let pendingCustomerCode = '';
 let customerSearch = '';
+let customerHistoryContext = null;
 let pendingServices = [];
 let lastDeleted = null;
 let toastTimer = null;
@@ -611,8 +654,10 @@ let currentUser = null;
 let appStarted = false;
 let editContext = null;
 let editSelectedType = 'tiem';
+let editBonus = false;
 let addServiceContext = null;
 let addServiceType = 'tiem';
+let addServiceBonus = false;
 let moveVisitContext = null;
 let deleteContext = null;
 let detailSwipeStart = null;
@@ -727,7 +772,7 @@ function remoteRow(entry, dateKey){
     customer_name: entry.customerName || null,
     customer_code: entry.customerCode || null,
     amount: Number(entry.amount),
-    commission_rate: RATES[entry.type],
+    commission_rate: entryRate(entry),
     created_at: new Date(entry.ts || Date.now()).toISOString(),
     updated_at: new Date(entry.updatedAt || Date.now()).toISOString()
   };
@@ -737,7 +782,8 @@ function rowToEntry(row){
   return {
     id:row.id, visitId:visitKeyOf({id:row.id}), type:row.service_type, amount:Number(row.amount),
     customerName:row.customer_name||'', customerCode:row.customer_code||'',
-    ts:new Date(row.created_at).getTime(), updatedAt:new Date(row.updated_at||row.created_at).getTime()
+    ts:new Date(row.created_at).getTime(), updatedAt:new Date(row.updated_at||row.created_at).getTime(),
+    bonus:row.service_type==='tiem' && Math.abs(Number(row.commission_rate)-BONUS_RATE)<0.000001
   };
 }
 
@@ -829,7 +875,7 @@ async function syncAllLegacy(){
     const {error:upsertError}=await dbClient.from('entries').upsert(localRows,{onConflict:'id'});
     if(upsertError){ console.error(upsertError); setSyncState('Lỗi đồng bộ'); return; }
   }
-  const {data,error}=await fetchAllEntries('id,work_date,service_type,customer_name,customer_code,amount,created_at,updated_at');
+  const {data,error}=await fetchAllEntries('id,work_date,service_type,customer_name,customer_code,amount,commission_rate,created_at,updated_at');
   if(error){ console.error(error); setSyncState('Lỗi đồng bộ'); return; }
   store=buildRemoteStore(data);
   await saveStore();
@@ -851,7 +897,7 @@ async function syncAll(){
     localStorage.setItem(queueKey,'[]');
   }
 
-  const columns='id,work_date,service_type,customer_name,customer_code,amount,created_at,updated_at';
+  const columns='id,work_date,service_type,customer_name,customer_code,amount,commission_rate,created_at,updated_at';
   const {data:remoteBefore,error:readError}=await fetchAllEntries(columns);
   if(readError){ console.error(readError); setSyncState('Lỗi đồng bộ'); return; }
   const remoteById={};
@@ -1016,19 +1062,25 @@ function entriesForDate(d){
 }
 function aggregate(dates){
   const agg = {
-    revenue:0, commission:0, count:0,
-    tiem:{revenue:0, commission:0, count:0},
+    revenue:0, commission:0, bonusCommission:0, bonusCount:0, count:0,
+    tiem:{revenue:0, commission:0, count:0, regularRevenue:0, regularCommission:0, regularCount:0, bonusRevenue:0, bonusCommission:0, bonusCount:0},
     may:{revenue:0, commission:0, count:0}
   };
   dates.forEach(d=>{
     (store[keyOf(d)]||[]).forEach(e=>{
-      const c = e.amount * RATES[e.type];
+      const c = e.amount * entryRate(e);
       agg.revenue += e.amount;
       agg.commission += c;
       agg.count += 1;
       agg[e.type].revenue += e.amount;
       agg[e.type].commission += c;
       agg[e.type].count += 1;
+      if(e.type==='tiem' && e.bonus){
+        agg.bonusCommission+=c; agg.bonusCount+=1;
+        agg.tiem.bonusRevenue+=e.amount; agg.tiem.bonusCommission+=c; agg.tiem.bonusCount+=1;
+      }else if(e.type==='tiem'){
+        agg.tiem.regularRevenue+=e.amount; agg.tiem.regularCommission+=c; agg.tiem.regularCount+=1;
+      }
     });
   });
   return agg;
@@ -1040,9 +1092,11 @@ function previousStatsDates(){
     const {start,end}=weekRange(statsAnchor);
     return datesBetween(addDays(start,-7),addDays(end,-7));
   }
-  const previousMonth=addMonths(statsAnchor,-1);
-  const {start,end}=monthRange(previousMonth);
-  return datesBetween(start,end);
+  if(statsMode==='month'){
+    const {start,end}=monthRange(addMonths(statsAnchor,-1));
+    return datesBetween(start,end);
+  }
+  return datesBetween(new Date(statsAnchor.getFullYear()-1,0,1),new Date(statsAnchor.getFullYear()-1,11,31));
 }
 
 function renderComparison(current,previous){
@@ -1139,10 +1193,10 @@ function renderCustomerSearchResults(){
     return `<div class="customer-search-result">
       <div class="customer-search-info">
         <div class="customer-search-name">${visit.first.customerName?escapeHtml(visit.first.customerName):'Khách lẻ'}</div>
-        <div class="customer-search-detail">MSKH: ${escapeHtml(visit.first.customerCode)} · ${formatDateKey(visit.key)} · ${visit.entries.length} dịch vụ</div>
+        <div class="customer-search-detail">${visit.first.customerCode?'MSKH: '+escapeHtml(visit.first.customerCode)+' · ':''}${formatDateKey(visit.key)} · ${visit.entries.length} dịch vụ</div>
       </div>
       <div class="customer-search-money"><strong>${fmtVND(total)}</strong></div>
-      <button class="customer-search-open" onclick="openCustomerSearchDate('${visit.key}')">Mở ngày</button>
+      <button class="customer-search-open" onclick="openCustomerHistory(decodeURIComponent('${encodeURIComponent(visit.first.customerCode||'').replace(/'/g,'%27')}'),decodeURIComponent('${encodeURIComponent(visit.first.customerName||'').replace(/'/g,'%27')}'),'${visit.key}')">Lịch sử</button>
     </div>`;
   }).join('')}`;
 }
@@ -1162,16 +1216,14 @@ function clearCustomerSearch(){
   updateCustomerSearch('');
 }
 
-function openCustomerSearchDate(key){
-  const [year,month,day]=key.split('-').map(Number);
-  entryDate=new Date(year,month-1,day);
-  customerSearch='';
-  setTab('entry');
-  const title=document.getElementById('daily-list-title');
-  if(title) title.scrollIntoView({block:'start'});
+function openCustomerHistory(customerCode,customerName,focusDate){
+  customerHistoryContext={customerCode,customerName,focusDate};
+  render();
+  window.scrollTo(0,0);
 }
 
 function renderSearchTab(){
+  if(customerHistoryContext) return renderCustomerHistoryTab();
   return `<div class="search-page">
     <div class="search-page-head">
       <div class="search-page-title">Tìm khách hàng</div>
@@ -1186,6 +1238,92 @@ function renderSearchTab(){
       </div>
       <div id="customer-search-results">${customerSearch.trim() ? renderCustomerSearchResults() : '<div class="customer-search-start"><div class="icon">⌕</div>Nhập tên hoặc MSKH để bắt đầu tìm kiếm.</div>'}</div>
     </div>
+    ${renderCustomerLeaderboards()}
+  </div>`;
+}
+
+function customerLeaderboardData(){
+  const customers={};
+  Object.entries(store||{}).forEach(([dateKey,entries])=>(entries||[]).forEach(entry=>{
+    const name=String(entry.customerName||'').trim();
+    const code=String(entry.customerCode||'').trim();
+    if(!name&&!code) return;
+    const identity=code?'code:'+normalizeCustomerSearch(code):'name:'+normalizeCustomerSearch(name);
+    if(!customers[identity]) customers[identity]={name:name||'Khách hàng',code,revenue:0,serviceCount:0,tiemCount:0,mayCount:0,searchValue:code||name};
+    const customer=customers[identity];
+    if(name) customer.name=name;
+    if(code) customer.code=code;
+    customer.revenue+=Number(entry.amount)||0;
+    customer.serviceCount+=1;
+    if(entry.type==='tiem') customer.tiemCount+=1;
+    if(entry.type==='may') customer.mayCount+=1;
+  }));
+  return Object.values(customers);
+}
+
+function renderCustomerLeaderList(customers,metric){
+  const sorted=customers.slice().sort(metric==='revenue'
+    ? (a,b)=>b.revenue-a.revenue||b.serviceCount-a.serviceCount||a.name.localeCompare(b.name,'vi')
+    : (a,b)=>b.serviceCount-a.serviceCount||b.revenue-a.revenue||a.name.localeCompare(b.name,'vi'));
+  const ranked=sorted;
+  if(!ranked.length) return '<div class="customer-search-empty">Chưa có dữ liệu khách hàng có tên hoặc MSKH.</div>';
+  return `<div class="leader-list-scroll">${ranked.map((customer,index)=>{
+    const meta=[customer.code?'MSKH: '+customer.code:'',customer.serviceCount+' dịch vụ','Tiêm '+customer.tiemCount,'Bắn máy '+customer.mayCount].filter(Boolean).join(' · ');
+    const searchValue=encodeURIComponent(customer.searchValue).replace(/'/g,'%27');
+    return `<div class="leader-row" role="button" tabindex="0" onclick="searchCustomerLeader(decodeURIComponent('${searchValue}'))" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();searchCustomerLeader(decodeURIComponent('${searchValue}'))}">
+      <span class="leader-rank">${index+1}</span>
+      <div class="leader-info"><div class="leader-name">${escapeHtml(customer.name)}</div><div class="leader-meta">${escapeHtml(meta)}</div></div>
+      <div class="leader-value">${metric==='revenue'?fmtVND(customer.revenue):customer.serviceCount+' dịch vụ'}<small>${metric==='revenue'?customer.serviceCount+' dịch vụ':'Tổng '+fmtVND(customer.revenue)}</small></div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function renderCustomerLeaderboards(){
+  const customers=customerLeaderboardData();
+  return `<section class="leader-section">
+    <div class="leader-heading"><div class="leader-title">Top khách hàng theo tổng tiền</div><div class="leader-subtitle">${customers.length} khách · vuốt để xem</div></div>
+    ${renderCustomerLeaderList(customers,'revenue')}
+    <div class="leader-heading" style="margin-top:20px"><div class="leader-title">Top khách hàng theo số dịch vụ</div><div class="leader-subtitle">${customers.length} khách · vuốt để xem</div></div>
+    ${renderCustomerLeaderList(customers,'services')}
+  </section>`;
+}
+
+function searchCustomerLeader(value){
+  customerSearch=value;
+  const input=document.getElementById('customer-search-input');
+  if(input) input.value=value;
+  updateCustomerSearch(value);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function renderCustomerHistoryTab(){
+  const {customerCode,customerName,focusDate}=customerHistoryContext;
+  const code=normalizeCustomerSearch(customerCode), name=normalizeCustomerSearch(customerName);
+  const byDate={};
+  Object.entries(store||{}).forEach(([dateKey,entries])=>{
+    const matching=(entries||[]).filter(entry=>{
+      const entryCode=normalizeCustomerSearch(entry.customerCode), entryName=normalizeCustomerSearch(entry.customerName);
+      return code ? (entryCode===code||(!entryCode&&name&&entryName===name)) : !!name&&entryName===name;
+    });
+    if(matching.length) byDate[dateKey]=matching;
+  });
+  const dateKeys=Object.keys(byDate).sort().reverse();
+  const allEntries=dateKeys.flatMap(key=>byDate[key]);
+  const total=allEntries.reduce((sum,entry)=>sum+(Number(entry.amount)||0),0);
+  const displayName=customerName||'Khách hàng';
+  return `<div class="search-page">
+    <div class="customer-history-head">
+      <button class="customer-history-back" aria-label="Quay lại tìm kiếm" onclick="customerHistoryContext=null;render();window.scrollTo(0,0)">‹</button>
+      <div><div class="customer-history-title">${escapeHtml(displayName)}</div><div class="customer-history-sub">${customerCode?'MSKH: '+escapeHtml(customerCode)+' · ':''}${dateKeys.length} ngày · ${allEntries.length} dịch vụ</div></div>
+    </div>
+    <div class="summary"><div class="box"><div class="k">Tổng dịch vụ</div><div class="v tnum">${allEntries.length}</div></div><div class="box hi"><div class="k">Tổng tiền</div><div class="v tnum">${fmtVND(total)}</div></div></div>
+    ${dateKeys.length?dateKeys.map(dateKey=>{
+      const [year,month,day]=dateKey.split('-').map(Number),date=new Date(year,month-1,day);
+      const items=byDate[dateKey],dayTotal=items.reduce((sum,entry)=>sum+(Number(entry.amount)||0),0);
+      const focused=dateKey===focusDate;
+      return `<div class="customer-history-date">${WD[date.getDay()]} · ${fmtDate(date)}${focused?' · ĐÃ CHỌN':''} · ${items.length} dịch vụ · ${fmtVND(dayTotal)}</div>
+        ${items.map(entry=>`<div class="customer-search-result"><span class="dot ${entry.type}"></span><div class="customer-search-info"><div class="customer-search-name">${LABELS[entry.type]}${entry.bonus?' · ★ Bonus':''}</div><div class="customer-search-detail">Hoa hồng ${Math.round(entryRate(entry)*100)}% · ${fmtVND(entry.amount*entryRate(entry))}</div></div><div class="customer-search-money"><strong>${fmtVND(entry.amount)}</strong></div></div>`).join('')}`;
+    }).join(''):'<div class="customer-search-empty">Chưa có ngày làm dịch vụ cho khách này.</div>'}
   </div>`;
 }
 
@@ -1194,9 +1332,8 @@ function renderEntryTab(){
   const visits = groupVisits(list);
   const agg = aggregate([entryDate]);
   const preview = pendingDigits ? parseInt(pendingDigits,10) : 0;
-  const previewC = preview * RATES[pendingType];
   const visitRevenue = pendingServices.reduce((sum,item)=>sum+item.amount,0);
-  const visitCommission = pendingServices.reduce((sum,item)=>sum+item.amount*RATES[item.type],0);
+  const visitCommission = pendingServices.reduce((sum,item)=>sum+item.amount*entryRate(item),0);
   const dayBillsChecked=visits.filter(visit=>billStore[visit.visitId]&&billStore[visit.visitId].checked).length;
 
   return `
@@ -1205,7 +1342,7 @@ function renderEntryTab(){
     <div class="typetoggle">
       <button class="${pendingType==='tiem'?'sel-tiem':''}" onclick="selectType('tiem')">
         <div><span class="dot tiem"></span><span class="name">Tiêm</span></div>
-        <div class="rate">Hoa hồng 6%</div>
+        <div class="rate">Hoa hồng ${pendingBonus?'2% bonus':'6%'}</div>
       </button>
       <button class="${pendingType==='may'?'sel-may':''}" onclick="selectType('may')">
         <div><span class="dot may"></span><span class="name">Bắn máy</span></div>
@@ -1230,8 +1367,10 @@ function renderEntryTab(){
 
     <div class="entrycard">
       <div class="amount-display">
+        <button class="bonus-toggle ${pendingBonus?'active':''}" type="button" onclick="togglePendingBonus()" ${pendingType!=='tiem'?'disabled':''}>
+          <span class="star">${pendingBonus?'★':'☆'}</span><span>Bonus · 2%</span>
+        </button>
         <div class="val ${pendingDigits?'':'placeholder'} tnum">${pendingDigits ? fmtVND(preview) : '0 đ'}</div>
-        <div class="commission tnum">${pendingDigits ? 'Hoa hồng dự kiến: '+fmtVND(previewC) : '&nbsp;'}</div>
       </div>
       <div class="numpad">
         ${[1,2,3,4,5,6,7,8,9].map(n=>`<button onclick="numTap('${n}')">${n}</button>`).join('')}
@@ -1251,7 +1390,7 @@ function renderEntryTab(){
         ${pendingServices.map(item=>`
           <div class="visit-item">
             <span class="dot ${item.type}"></span>
-            <div class="visit-item-info"><div class="visit-item-name">${LABELS[item.type]}</div><div class="visit-item-commission">Hoa hồng ${Math.round(RATES[item.type]*100)}% · ${fmtVND(item.amount*RATES[item.type])}</div></div>
+            <div class="visit-item-info"><div class="visit-item-name">${LABELS[item.type]}${item.bonus?' · ★ Bonus':''}</div><div class="visit-item-commission">Hoa hồng ${Math.round(entryRate(item)*100)}% · ${fmtVND(item.amount*entryRate(item))}</div></div>
             <div class="visit-item-amount">${fmtVND(item.amount)}</div>
             <button class="visit-item-remove" aria-label="Bỏ dịch vụ" onclick="removePendingService('${item.draftId}')">×</button>
           </div>`).join('')}
@@ -1272,7 +1411,7 @@ function renderEntryTab(){
       <div class="empty"><div class="ic">🗒️</div>Chưa có đơn nào trong ngày này.<br>Nhập số tiền phía trên để bắt đầu.</div>
     ` : visits.map(visit=>{
       const visitRevenue=visit.entries.reduce((sum,e)=>sum+e.amount,0);
-      const visitCommission=visit.entries.reduce((sum,e)=>sum+e.amount*RATES[e.type],0);
+      const visitCommission=visit.entries.reduce((sum,e)=>sum+e.amount*entryRate(e),0);
       const first=visit.entries[0];
       const bill=billStore[visit.visitId];
       const hasBill=hasBillImage(bill);
@@ -1293,9 +1432,11 @@ function renderEntryTab(){
         </div>
         ${visit.entries.map(e=>`<div class="visit-service-row">
           <span class="dot ${e.type}"></span>
-          <div class="visit-service-info"><div class="visit-service-name">${LABELS[e.type]}</div><div class="visit-service-com">Hoa hồng ${Math.round(RATES[e.type]*100)}% · ${fmtVND(e.amount*RATES[e.type])}</div></div>
+          <div class="visit-service-info"><div class="visit-service-name">${LABELS[e.type]}${e.bonus?' · ★ Bonus':''}</div><div class="visit-service-com">Hoa hồng ${Math.round(entryRate(e)*100)}% · ${fmtVND(e.amount*entryRate(e))}</div></div>
           <div class="visit-service-amount">${fmtVND(e.amount)}</div>
+          <button class="bonus-entry-toggle ${e.bonus?'active':''}" aria-label="${e.bonus?'Tắt':'Bật'} bonus" title="${e.bonus?'Tắt':'Bật'} bonus 2%" onclick="toggleEntryBonus('${keyOf(entryDate)}','${e.id}')" ${e.type!=='tiem'?'disabled':''}>${e.bonus?'★':'☆'}</button>
           <button class="edit" aria-label="Sửa dịch vụ" onclick="editEntry('${keyOf(entryDate)}','${e.id}')">✎</button>
+          <button class="visit-entry-delete" aria-label="Xóa dịch vụ" title="Xóa dịch vụ" onclick="deleteEntry('${keyOf(entryDate)}','${e.id}')">×</button>
         </div>`).join('')}
       </div>`;
     }).join('')}
@@ -1313,11 +1454,16 @@ function renderStatsTab(){
     dates=datesBetween(start,end);
     label = 'Tuần '+fmtDate(start)+' – '+fmtDate(end);
     sublabel = 'Thứ 2 → Chủ nhật';
-  } else {
+  } else if(statsMode==='month'){
     const {start,end}=monthRange(statsAnchor);
     dates=datesBetween(start,end);
     label = 'Tháng '+pad(statsAnchor.getMonth()+1)+'/'+statsAnchor.getFullYear();
     sublabel = dates.length+' ngày trong tháng';
+  } else {
+    const start=new Date(statsAnchor.getFullYear(),0,1), end=new Date(statsAnchor.getFullYear(),11,31);
+    dates=datesBetween(start,end);
+    label='Năm '+statsAnchor.getFullYear();
+    sublabel=dates.length+' ngày trong năm';
   }
   const agg = aggregate(dates);
   const previousAgg = aggregate(previousStatsDates());
@@ -1338,6 +1484,7 @@ function renderStatsTab(){
       <button class="${statsMode==='day'?'active':''}" onclick="setStatsMode('day')">Ngày</button>
       <button class="${statsMode==='week'?'active':''}" onclick="setStatsMode('week')">Tuần</button>
       <button class="${statsMode==='month'?'active':''}" onclick="setStatsMode('month')">Tháng</button>
+      <button class="${statsMode==='year'?'active':''}" onclick="setStatsMode('year')">Năm</button>
     </div>
 
     <div class="periodbar">
@@ -1350,7 +1497,6 @@ function renderStatsTab(){
       <div class="box"><div class="k">Tổng doanh thu</div><div class="v tnum">${fmtVND(agg.revenue)}</div>${renderComparison(agg.revenue,previousAgg.revenue)}</div>
       <div class="box hi"><div class="k">Tổng hoa hồng</div><div class="v tnum">${fmtVND(agg.commission)}</div>${renderComparison(agg.commission,previousAgg.commission)}</div>
     </div>
-
     <div class="donutwrap">
       <svg width="100" height="100" viewBox="0 0 100 100">
         <circle cx="50" cy="50" r="${r}" fill="none" stroke="#F1E7E1" stroke-width="12"/>
@@ -1376,11 +1522,19 @@ function renderStatsTab(){
     </div>
 
     <div class="breakdown">
-      <div class="bd-row clickable" role="button" tabindex="0" onclick="openStatsDetail('tiem')">
-        <div class="hd"><span class="dot tiem" style="width:8px;height:8px;border-radius:50%;display:inline-block;background:var(--tiem);margin-right:6px;"></span><span class="name">Dịch vụ tiêm</span><span class="rate">6%</span></div>
+      <div class="bd-row clickable" role="button" tabindex="0" onclick="openStatsDetail('tiem_regular')">
+        <div class="hd"><span class="dot tiem" style="width:8px;height:8px;border-radius:50%;display:inline-block;background:var(--tiem);margin-right:6px;"></span><span class="name">Tiêm thường</span><span class="rate">6% · ${agg.tiem.regularCount} đơn</span></div>
         <div class="stats">
-          <div class="c"><div class="k">Doanh thu</div><div class="v tnum">${fmtVND(agg.tiem.revenue)}</div></div>
-          <div class="c"><div class="k">Hoa hồng</div><div class="v tnum">${fmtVND(agg.tiem.commission)}</div></div>
+          <div class="c"><div class="k">Doanh thu</div><div class="v tnum">${fmtVND(agg.tiem.regularRevenue)}</div></div>
+          <div class="c"><div class="k">Hoa hồng</div><div class="v tnum">${fmtVND(agg.tiem.regularCommission)}</div></div>
+        </div>
+        <span class="chevron">›</span>
+      </div>
+      <div class="bd-row bonus-stat clickable" role="button" tabindex="0" onclick="openStatsDetail('tiem_bonus')">
+        <div class="hd"><span class="name">★ Tiêm bonus</span><span class="rate">2% · ${agg.tiem.bonusCount} đơn</span></div>
+        <div class="stats">
+          <div class="c"><div class="k">Doanh thu</div><div class="v tnum">${fmtVND(agg.tiem.bonusRevenue)}</div></div>
+          <div class="c"><div class="k">Hoa hồng bonus</div><div class="v tnum">${fmtVND(agg.tiem.bonusCommission)}</div></div>
         </div>
         <span class="chevron">›</span>
       </div>
@@ -1407,9 +1561,14 @@ function statsPeriodContext(){
     const {start,end}=weekRange(statsAnchor);
     return {dates:datesBetween(start,end),label:'Tuần '+fmtDate(start)+' – '+fmtDate(end),sub:'Thứ 2 → Chủ nhật'};
   }
-  const {start,end}=monthRange(statsAnchor);
+  if(statsMode==='month'){
+    const {start,end}=monthRange(statsAnchor);
+    const dates=datesBetween(start,end);
+    return {dates,label:'Tháng '+pad(statsAnchor.getMonth()+1)+'/'+statsAnchor.getFullYear(),sub:dates.length+' ngày trong tháng'};
+  }
+  const start=new Date(statsAnchor.getFullYear(),0,1), end=new Date(statsAnchor.getFullYear(),11,31);
   const dates=datesBetween(start,end);
-  return {dates,label:'Tháng '+pad(statsAnchor.getMonth()+1)+'/'+statsAnchor.getFullYear(),sub:dates.length+' ngày trong tháng'};
+  return {dates,label:'Năm '+statsAnchor.getFullYear(),sub:dates.length+' ngày trong năm'};
 }
 
 function openBillManager(){ billManagerOpen=true; statsDetailType=null; render(); window.scrollTo(0,0); }
@@ -1448,15 +1607,18 @@ function closeStatsDetail(){ statsDetailType=null; render(); window.scrollTo(0,0
 
 function renderStatsDetail(){
   const context=statsPeriodContext();
-  const type=statsDetailType;
+  const detailMode=statsDetailType;
+  const type=detailMode.startsWith('tiem_')?'tiem':detailMode;
+  const bonusFilter=detailMode==='tiem_bonus'?true:detailMode==='tiem_regular'?false:null;
+  const title=type==='tiem'?(bonusFilter===true?'Tiêm bonus':bonusFilter===false?'Tiêm thường':'Dịch vụ tiêm'):LABELS[type];
   const items=[];
   context.dates.forEach(date=>{
     const dateKey=keyOf(date);
-    (store[dateKey]||[]).filter(entry=>entry.type===type).forEach(entry=>items.push({...entry,dateKey,date:new Date(date)}));
+    (store[dateKey]||[]).filter(entry=>entry.type===type&&(bonusFilter===null||!!entry.bonus===bonusFilter)).forEach(entry=>items.push({...entry,dateKey,date:new Date(date)}));
   });
   items.sort((a,b)=>b.dateKey.localeCompare(a.dateKey)||(b.ts||0)-(a.ts||0));
   const revenue=items.reduce((sum,item)=>sum+item.amount,0);
-  const commission=items.reduce((sum,item)=>sum+item.amount*RATES[type],0);
+  const commission=items.reduce((sum,item)=>sum+item.amount*entryRate(item),0);
   const grouped={};
   items.forEach(item=>{ if(!grouped[item.dateKey]) grouped[item.dateKey]=[]; grouped[item.dateKey].push(item); });
   const dateKeys=Object.keys(grouped).sort().reverse();
@@ -1464,7 +1626,7 @@ function renderStatsDetail(){
     <div id="stats-detail-page" class="stats-detail-page">
     <div class="detail-top">
       <button class="detail-back" onclick="closeStatsDetail()" aria-label="Quay lại">‹</button>
-      <div class="detail-heading"><div class="detail-title">${LABELS[type]}</div><div class="detail-period">${context.label} · ${items.length} dịch vụ</div></div>
+      <div class="detail-heading"><div class="detail-title">${title}</div><div class="detail-period">${context.label} · ${items.length} dịch vụ</div></div>
     </div>
     <div class="summary">
       <div class="box"><div class="k">Tổng doanh thu</div><div class="v tnum">${fmtVND(revenue)}</div></div>
@@ -1476,8 +1638,8 @@ function renderStatsDetail(){
       return `<div class="detail-day-title">${WD[date.getDay()]} · ${fmtDate(date)} (${grouped[dateKey].length})</div>
       ${grouped[dateKey].map(entry=>`<div class="detail-entry">
         <span class="dot ${type}"></span>
-        <div class="detail-entry-info"><div class="detail-entry-name">${entry.customerName ? escapeHtml(entry.customerName) : 'Khách lẻ'}</div><div class="detail-entry-code">${entry.customerCode ? 'MSKH: '+escapeHtml(entry.customerCode) : LABELS[type]}</div></div>
-        <div class="detail-entry-money"><div class="detail-entry-amount">${fmtVND(entry.amount)}</div><div class="detail-entry-com">+ ${fmtVND(entry.amount*RATES[type])}</div></div>
+        <div class="detail-entry-info"><div class="detail-entry-name">${entry.customerName ? escapeHtml(entry.customerName) : 'Khách lẻ'} ${entry.bonus?'<span class="bonus-pill">★ Bonus</span>':''}</div><div class="detail-entry-code">${entry.customerCode ? 'MSKH: '+escapeHtml(entry.customerCode) : LABELS[type]}</div></div>
+        <div class="detail-entry-money"><div class="detail-entry-amount">${fmtVND(entry.amount)}</div><div class="detail-entry-com">+ ${fmtVND(entry.amount*entryRate(entry))}</div></div>
       </div>`).join('')}`;
     }).join('')}
     </div>
@@ -1494,7 +1656,8 @@ function setStatsMode(m){ statsMode=m; render(); }
 function shiftStats(n){
   if(statsMode==='day') statsAnchor = addDays(statsAnchor, n);
   else if(statsMode==='week') statsAnchor = addDays(statsAnchor, n*7);
-  else statsAnchor = addMonths(statsAnchor, n);
+  else if(statsMode==='month') statsAnchor = addMonths(statsAnchor, n);
+  else statsAnchor = new Date(statsAnchor.getFullYear()+n,statsAnchor.getMonth(),statsAnchor.getDate());
   render();
 }
 function jumpStatsDate(value){
@@ -1504,7 +1667,7 @@ function jumpStatsDate(value){
   render();
 }
 
-function selectType(t){ pendingType=t; render(); }
+function selectType(t){ pendingType=t; if(t!=='tiem') pendingBonus=false; render(); }
 
 function updateAmountEntryUI(){
   const amount=pendingDigits ? parseInt(pendingDigits,10) : 0;
@@ -1516,7 +1679,7 @@ function updateAmountEntryUI(){
     valueEl.textContent=amount>0 ? fmtVND(amount) : '0 đ';
     valueEl.classList.toggle('placeholder',amount<=0);
   }
-  if(commissionEl) commissionEl.innerHTML=amount>0 ? 'Hoa hồng dự kiến: '+fmtVND(amount*RATES[pendingType]) : '&nbsp;';
+  if(commissionEl) commissionEl.innerHTML=amount>0 ? 'Hoa hồng dự kiến: '+fmtVND(amount*(pendingType==='tiem'&&pendingBonus?BONUS_RATE:RATES[pendingType])) : '&nbsp;';
   if(queueButton) queueButton.disabled=amount<=0;
   if(saveButton) saveButton.disabled=amount<=0 && pendingServices.length===0;
 }
@@ -1532,6 +1695,7 @@ function numBack(){
   pendingDigits = pendingDigits.slice(0,-1);
   updateAmountEntryUI();
 }
+function togglePendingBonus(){ if(pendingType!=='tiem') return; pendingBonus=!pendingBonus; render(); }
 
 async function addEntryLegacy(){
   const amount = parseInt(pendingDigits||'0',10);
@@ -1542,6 +1706,7 @@ async function addEntryLegacy(){
     id: 'e'+Date.now()+Math.random().toString(36).slice(2,7),
     type: pendingType,
     amount,
+    bonus: pendingType==='tiem' && pendingBonus,
     customerName: pendingCustomerName.trim(),
     customerCode: pendingCustomerCode.trim(),
     ts: Date.now(),
@@ -1549,6 +1714,7 @@ async function addEntryLegacy(){
   };
   store[key].push(entry);
   pendingDigits='';
+  pendingBonus=false;
   pendingCustomerName='';
   pendingCustomerCode='';
   render();
@@ -1562,9 +1728,11 @@ function addPendingService(){
   pendingServices.push({
     draftId:'d'+Date.now()+Math.random().toString(36).slice(2,6),
     type:pendingType,
-    amount
+    amount,
+    bonus:pendingType==='tiem' && pendingBonus
   });
   pendingDigits='';
+  pendingBonus=false;
   render();
 }
 
@@ -1576,7 +1744,7 @@ function removePendingService(draftId){
 async function saveVisit(){
   const currentAmount=parseInt(pendingDigits||'0',10);
   const services=pendingServices.slice();
-  if(currentAmount>0) services.push({type:pendingType,amount:currentAmount});
+  if(currentAmount>0) services.push({type:pendingType,amount:currentAmount,bonus:pendingType==='tiem'&&pendingBonus});
   if(!services.length) return;
   const key=keyOf(entryDate);
   if(!store[key]) store[key]=[];
@@ -1589,6 +1757,7 @@ async function saveVisit(){
     visitId,
     type:service.type,
     amount:service.amount,
+    bonus:service.type==='tiem'&&!!service.bonus,
     customerName,
     customerCode,
     ts:timestamp+index,
@@ -1598,6 +1767,7 @@ async function saveVisit(){
   const count=entries.length;
   pendingServices=[];
   pendingDigits='';
+  pendingBonus=false;
   pendingCustomerName='';
   pendingCustomerCode='';
   render();
@@ -1653,6 +1823,8 @@ function editEntry(key,id){
   if(!entry) return;
   editContext={key,id};
   editSelectedType=entry.type;
+  editBonus=!!entry.bonus;
+  updateBonusButton('edit-bonus-toggle',editBonus,editSelectedType==='tiem');
   selectEditType(entry.type);
   document.getElementById('edit-amount').value=String(entry.amount);
   document.getElementById('edit-name').value=entry.customerName||'';
@@ -1660,6 +1832,16 @@ function editEntry(key,id){
   document.getElementById('edit-error').textContent='';
   openModal('edit-modal');
   setTimeout(()=>document.getElementById('edit-amount').focus(),220);
+}
+
+async function toggleEntryBonus(key,id){
+  const entry=(store[key]||[]).find(item=>item.id===id);
+  if(!entry||entry.type!=='tiem') return;
+  entry.bonus=!entry.bonus;
+  entry.updatedAt=Date.now();
+  render();
+  await saveStore();
+  await syncEntry(entry,key);
 }
 
 async function saveEditEntry(){
@@ -1674,6 +1856,7 @@ async function saveEditEntry(){
   }
   entry.amount=amount;
   entry.type=editSelectedType;
+  entry.bonus=editSelectedType==='tiem'&&editBonus;
   const customerName=document.getElementById('edit-name').value.trim();
   const customerCode=document.getElementById('edit-code').value.trim();
   const visitId=visitKeyOf(entry);
@@ -1696,12 +1879,27 @@ function updateModalTypeButtons(prefix,type){
 function selectEditType(type){
   editSelectedType=type;
   updateModalTypeButtons('edit',type);
+  if(type!=='tiem') editBonus=false;
+  updateBonusButton('edit-bonus-toggle',editBonus,type==='tiem');
 }
+
+function updateBonusButton(id,active,enabled=true){
+  const button=document.getElementById(id);
+  if(!button) return;
+  button.disabled=!enabled;
+  button.classList.toggle('active',!!active&&enabled);
+  const text=button.querySelector('span:last-child');
+  if(text) text.textContent=active&&enabled?'Bonus đang bật · hoa hồng 2%':'Bonus · áp dụng hoa hồng 2%';
+}
+function toggleEditBonus(){ if(editSelectedType!=='tiem') return; editBonus=!editBonus; updateBonusButton('edit-bonus-toggle',editBonus,true); }
 
 function selectAddServiceType(type){
   addServiceType=type;
   updateModalTypeButtons('add',type);
+  if(type!=='tiem') addServiceBonus=false;
+  updateBonusButton('add-bonus-toggle',addServiceBonus,type==='tiem');
 }
+function toggleAddServiceBonus(){ if(addServiceType!=='tiem') return; addServiceBonus=!addServiceBonus; updateBonusButton('add-bonus-toggle',addServiceBonus,true); }
 
 function visitEntriesAt(key,visitId){
   return (store[key]||[]).filter(item=>visitKeyOf(item)===visitId);
@@ -1719,6 +1917,7 @@ function openAddService(key,visitId){
   if(!entries.length) return;
   addServiceContext={key,visitId};
   addServiceType='tiem';
+  addServiceBonus=false;
   document.getElementById('add-service-customer').innerHTML=visitCustomerSummary(entries);
   document.getElementById('add-service-amount').value='';
   document.getElementById('add-service-error').textContent='';
@@ -1758,6 +1957,7 @@ async function saveAddedService(){
   const entry={
     id:visitId+'_'+(now+existing.length), visitId,
     type:addServiceType, amount,
+    bonus:addServiceType==='tiem'&&addServiceBonus,
     customerName:first.customerName||'', customerCode:first.customerCode||'',
     ts:now+existing.length, updatedAt:now+existing.length
   };
@@ -2195,13 +2395,21 @@ async function rekeyBill(oldVisitId,newVisitId){
 function deleteEntry(key,id){
   const entry=(store[key]||[]).find(item=>item.id===id);
   if(!entry) return;
-  deleteVisit(key,visitKeyOf(entry));
+  const visitId=visitKeyOf(entry);
+  deleteContext={key,visitId,ids:[id],single:true};
+  document.getElementById('delete-modal-title').textContent='Xóa dịch vụ này?';
+  document.querySelector('#delete-modal .modal-sub').textContent='Dịch vụ này sẽ bị xóa khỏi bảng công và dữ liệu đồng bộ.';
+  document.getElementById('delete-amount').textContent=fmtVND(entry.amount);
+  document.getElementById('delete-customer').textContent=entry.customerName?'Khách hàng: '+entry.customerName:'';
+  openModal('delete-modal');
 }
 
 function deleteVisit(key,visitId){
   const entries=(store[key]||[]).filter(item=>visitKeyOf(item)===visitId);
   if(!entries.length) return;
   deleteContext={key,visitId,ids:entries.map(item=>item.id)};
+  document.getElementById('delete-modal-title').textContent='Xóa lượt khách này?';
+  document.querySelector('#delete-modal .modal-sub').textContent='Tất cả dịch vụ trong lượt sẽ bị xóa khỏi bảng công và dữ liệu đồng bộ.';
   const amount=entries.reduce((sum,item)=>sum+item.amount,0);
   document.getElementById('delete-amount').textContent=fmtVND(amount);
   document.getElementById('delete-customer').textContent=(entries[0].customerName ? 'Khách hàng: '+entries[0].customerName+' · ' : '')+entries.length+' dịch vụ'+(hasBillImage(billStore[visitId])?' · Ảnh bill cũng sẽ bị xóa':'');
@@ -2210,11 +2418,12 @@ function deleteVisit(key,visitId){
 
 async function confirmDeleteEntry(){
   if(!deleteContext) return;
-  const {key,visitId,ids}=deleteContext;
+  const {key,visitId,ids,single}=deleteContext;
   const arr=store[key]||[];
   const entries=arr.filter(item=>ids.includes(item.id));
   if(!entries.length) return closeModal('delete-modal');
-  if(billStore[visitId]){
+  const visitCount=arr.filter(item=>visitKeyOf(item)===visitId).length;
+  if(billStore[visitId]&&entries.length===visitCount){
     try{ await deleteBillAssets([visitId]); }
     catch(error){ showToast(error.message||'Không thể xóa ảnh bill'); return; }
   }
@@ -2223,7 +2432,7 @@ async function confirmDeleteEntry(){
   deleteContext=null;
   closeModal('delete-modal');
   render(); await saveStore(); await Promise.all(ids.map(id=>removeRemoteEntry(id)));
-  showToast('Đã xóa lượt khách');
+  showToast(single?'Đã xóa dịch vụ':'Đã xóa lượt khách');
 }
 
 async function undoDelete(){
