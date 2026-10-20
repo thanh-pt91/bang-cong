@@ -47,6 +47,13 @@
     padding-bottom: calc(72px + env(safe-area-inset-bottom));
   }
   body.authenticated #app{display:flex;}
+  body.access-pending nav.tabbar{display:none;}
+  .access-gate-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:24px 16px;}
+  .access-gate{width:100%;background:var(--card);border-radius:22px;padding:26px 22px;box-shadow:var(--shadow);text-align:center;}
+  .access-gate-icon{font-size:30px;margin-bottom:10px;color:var(--rose-deep);}
+  .access-gate-title{font-family:'Fraunces',serif;font-size:23px;font-weight:600;margin-bottom:8px;}
+  .access-gate-copy{font-size:13px;line-height:1.6;color:var(--ink-soft);}
+  .access-gate button{margin-top:18px;border:0;border-radius:12px;padding:12px 18px;background:var(--rose);color:white;font-weight:700;}
 
   #auth-screen{
     min-height:100vh; padding:calc(28px + env(safe-area-inset-top)) 22px calc(28px + env(safe-area-inset-bottom));
@@ -86,6 +93,15 @@
   }
   header.top .sub{
     font-size:12px; color:var(--ink-soft);
+  }
+  #account-email{overflow-wrap:anywhere;}
+  @media (max-width:520px){
+    header.top{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px 10px;padding:calc(14px + env(safe-area-inset-top)) 18px 12px;}
+    header.top .title{font-size:20px;line-height:1.15;white-space:nowrap;}
+    header.top .sub{max-width:165px;font-size:11px;line-height:1.35;}
+    .account-tools{display:grid;grid-template-columns:auto auto;align-items:center;gap:6px;}
+    #sync-state{grid-column:1 / -1;justify-self:end;white-space:nowrap;font-size:10px;padding:0 2px;}
+    .account-action,.logout-btn{min-height:34px;padding:7px 9px;font-size:10px;}
   }
 
   main{flex:1; padding: 0 16px 24px; position:relative;}
@@ -547,7 +563,7 @@
   <header class="top">
     <div>
       <div class="title">Bảng Công</div>
-      <div class="sub">Hoa hồng dịch vụ thẩm mỹ</div>
+      <div class="sub" id="account-email"></div>
     </div>
     <div class="account-tools">
       <span id="sync-state" onclick="syncAll()" title="Chạm để đồng bộ lại">Đang kết nối…</span>
@@ -973,13 +989,34 @@ async function syncAll(){
 
 async function startApp(user){
   currentUser=user;
+  document.getElementById('account-email').textContent=user.email||'';
   document.body.classList.add('authenticated');
+  if(!TEST_MODE){
+    document.body.classList.add('access-pending');
+    document.getElementById('main').innerHTML=renderAccessGate('checking');
+    const {data,error}=await dbClient.from('user_access').select('can_write').eq('user_id',user.id).maybeSingle();
+    if(error || !data || data.can_write!==true){
+      store={}; billStore={}; appStarted=false;
+      setSyncState(error?'Không kiểm tra được quyền':'Chờ được cấp quyền');
+      document.getElementById('main').innerHTML=renderAccessGate(error?'error':'pending');
+      return;
+    }
+    document.body.classList.remove('access-pending');
+  }
   if(TEST_MODE){ document.body.classList.add('test-mode'); document.title='Bảng Công — Thử nghiệm'; }
   await loadStore();
   await loadBills();
   if(!appStarted){ render(); appStarted=true; }
   if(TEST_MODE) setSyncState('Thử nghiệm • Không đồng bộ');
   else await syncAll();
+}
+
+function renderAccessGate(state){
+  const checking=state==='checking';
+  const failed=state==='error';
+  const title=checking?'Đang kiểm tra quyền…':failed?'Chưa kiểm tra được quyền':'Tài khoản đang chờ duyệt';
+  const copy=checking?'Vui lòng đợi trong giây lát.':failed?'Không thể xác nhận quyền nhập liệu lúc này. Hãy thử tải lại hoặc liên hệ người quản lý.':'Tài khoản đã được tạo. Người quản lý cần cấp quyền nhập liệu trước khi bạn có thể xem hoặc sử dụng bảng công.';
+  return `<div class="access-gate-wrap"><section class="access-gate"><div class="access-gate-icon">${checking?'…':'🔒'}</div><div class="access-gate-title">${title}</div><div class="access-gate-copy">${copy}</div>${checking?'':'<button type="button" onclick="startApp(currentUser)">Kiểm tra lại</button>'}</section></div>`;
 }
 
 function setAuthFeedback(message,success=false){
@@ -1130,7 +1167,8 @@ async function logout(){
   if(TEST_MODE) return;
   await dbClient.auth.signOut();
   currentUser=null; store={}; appStarted=false;
-  document.body.classList.remove('authenticated');
+  document.body.classList.remove('authenticated','access-pending');
+  document.getElementById('main').innerHTML='';
 }
 
 window.addEventListener('online',()=>syncAll());
