@@ -63,7 +63,14 @@
   .auth-submit{width:100%; border:none; border-radius:14px; padding:14px; margin-top:5px; background:var(--rose); color:#fff; font-size:15px; font-weight:700;}
   .auth-submit:disabled{opacity:.55;}
   #auth-error{min-height:18px; margin-top:12px; color:var(--danger); font-size:12px; text-align:center;}
+  #auth-error.success{color:#26834A;}
+  .auth-view[hidden]{display:none;}
+  .auth-links{display:flex; justify-content:space-between; gap:12px; margin-top:16px;}
+  .auth-link{border:0; padding:4px 0; background:transparent; color:var(--rose-deep); font:600 12px 'Inter',sans-serif; text-decoration:underline; text-underline-offset:3px;}
+  .auth-back{display:block; margin:14px auto 0;}
   .account-tools{display:flex; align-items:center; gap:8px;}
+  .account-action{border:1px solid var(--line); background:var(--card); color:var(--ink-soft); border-radius:10px; padding:6px 8px; font-size:10.5px; font-weight:600; white-space:nowrap;}
+  body.test-mode .account-action{display:none;}
   #sync-state{font-size:10.5px; color:var(--ink-soft); cursor:pointer; padding:5px 2px;}
   body.test-mode #sync-state{color:var(--rose-deep); font-weight:700;}
   body.test-mode .logout-btn{display:none;}
@@ -506,14 +513,34 @@
 </head>
 <body>
 <div id="auth-screen">
-  <form class="auth-card" onsubmit="login(event)">
+  <div class="auth-card">
     <div class="auth-title">Bảng Công</div>
-    <div class="auth-sub">Đăng nhập để lưu và đồng bộ dữ liệu hoa hồng an toàn.</div>
-    <div class="auth-field"><label for="login-email">Email</label><input id="login-email" type="email" autocomplete="username" required placeholder="email@example.com"></div>
-    <div class="auth-field"><label for="login-password">Mật khẩu</label><input id="login-password" type="password" autocomplete="current-password" required placeholder="Nhập mật khẩu"></div>
-    <button class="auth-submit" id="login-btn" type="submit">Đăng nhập</button>
-    <div id="auth-error"></div>
-  </form>
+    <div class="auth-sub" id="auth-subtitle">Đăng nhập để lưu và đồng bộ dữ liệu hoa hồng an toàn.</div>
+    <form class="auth-view" id="auth-login-view" onsubmit="login(event)">
+      <div class="auth-field"><label for="login-email">Email</label><input id="login-email" type="email" autocomplete="username" required placeholder="email@example.com"></div>
+      <div class="auth-field"><label for="login-password">Mật khẩu</label><input id="login-password" type="password" autocomplete="current-password" required placeholder="Nhập mật khẩu"></div>
+      <button class="auth-submit" id="login-btn" type="submit">Đăng nhập</button>
+      <div class="auth-links"><button class="auth-link" type="button" onclick="showAuthView('signup')">Tạo tài khoản</button><button class="auth-link" type="button" onclick="showAuthView('forgot')">Quên mật khẩu?</button></div>
+    </form>
+    <form class="auth-view" id="auth-signup-view" onsubmit="signup(event)" hidden>
+      <div class="auth-field"><label for="signup-email">Email</label><input id="signup-email" type="email" autocomplete="email" required placeholder="email@example.com"></div>
+      <div class="auth-field"><label for="signup-password">Mật khẩu mới (tối thiểu 8 ký tự)</label><input id="signup-password" type="password" autocomplete="new-password" minlength="8" required placeholder="Tạo mật khẩu"></div>
+      <div class="auth-field"><label for="signup-password-confirm">Nhập lại mật khẩu</label><input id="signup-password-confirm" type="password" autocomplete="new-password" minlength="8" required placeholder="Nhập lại mật khẩu"></div>
+      <button class="auth-submit" id="signup-btn" type="submit">Tạo tài khoản</button>
+      <button class="auth-link auth-back" type="button" onclick="showAuthView('login')">Quay lại đăng nhập</button>
+    </form>
+    <form class="auth-view" id="auth-forgot-view" onsubmit="sendPasswordReset(event)" hidden>
+      <div class="auth-field"><label for="forgot-email">Email tài khoản</label><input id="forgot-email" type="email" autocomplete="email" required placeholder="email@example.com"></div>
+      <button class="auth-submit" id="forgot-btn" type="submit">Gửi liên kết đặt lại</button>
+      <button class="auth-link auth-back" type="button" onclick="showAuthView('login')">Quay lại đăng nhập</button>
+    </form>
+    <form class="auth-view" id="auth-reset-view" onsubmit="resetPasswordFromEmail(event)" hidden>
+      <div class="auth-field"><label for="recovery-password">Mật khẩu mới (tối thiểu 8 ký tự)</label><input id="recovery-password" type="password" autocomplete="new-password" minlength="8" required placeholder="Tạo mật khẩu mới"></div>
+      <div class="auth-field"><label for="recovery-password-confirm">Nhập lại mật khẩu mới</label><input id="recovery-password-confirm" type="password" autocomplete="new-password" minlength="8" required placeholder="Nhập lại mật khẩu mới"></div>
+      <button class="auth-submit" id="recovery-btn" type="submit">Lưu mật khẩu mới</button>
+    </form>
+    <div id="auth-error" role="status" aria-live="polite"></div>
+  </div>
 </div>
 
 <div id="app">
@@ -524,6 +551,7 @@
     </div>
     <div class="account-tools">
       <span id="sync-state" onclick="syncAll()" title="Chạm để đồng bộ lại">Đang kết nối…</span>
+      <button class="account-action" type="button" onclick="openChangePassword()">Đổi mật khẩu</button>
       <button class="logout-btn" onclick="logout()">Đăng xuất</button>
     </div>
   </header>
@@ -598,6 +626,19 @@
     <div class="modal-actions"><button class="modal-cancel" onclick="closeModal('delete-modal')">Hủy</button><button class="modal-danger" onclick="confirmDeleteEntry()">Xóa đơn</button></div>
   </div>
 </div>
+<div class="modal-backdrop" id="change-password-modal" onclick="backdropClose(event,'change-password-modal')">
+  <div class="app-modal" role="dialog" aria-modal="true" aria-labelledby="change-password-title">
+    <div class="modal-icon">⌁</div><div class="modal-title" id="change-password-title">Đổi mật khẩu</div>
+    <div class="modal-sub">Xác nhận mật khẩu hiện tại rồi tạo mật khẩu mới.</div>
+    <form onsubmit="changePassword(event)">
+      <div class="modal-field"><label for="current-password">Mật khẩu hiện tại</label><input id="current-password" type="password" autocomplete="current-password" required></div>
+      <div class="modal-field"><label for="new-password">Mật khẩu mới (tối thiểu 8 ký tự)</label><input id="new-password" type="password" autocomplete="new-password" minlength="8" required></div>
+      <div class="modal-field"><label for="new-password-confirm">Nhập lại mật khẩu mới</label><input id="new-password-confirm" type="password" autocomplete="new-password" minlength="8" required></div>
+      <div class="modal-error" id="change-password-error"></div>
+      <div class="modal-actions"><button class="modal-cancel" type="button" onclick="closeModal('change-password-modal')">Hủy</button><button class="modal-primary" id="change-password-btn" type="submit">Lưu mật khẩu</button></div>
+    </form>
+  </div>
+</div>
 
 <div id="toast"><span id="toast-msg"></span><button id="toast-undo">Hoàn tác</button></div>
 
@@ -631,6 +672,7 @@ const BILL_BUCKET = 'bills';
 const BILL_MAX_BYTES = 800 * 1024;
 const SUPABASE_URL = 'https://mcmpxhqbjixnxbwuxpjv.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_tZzdGmF987bN4lr-U8yicA_QL0q9Oyh';
+const AUTH_PUBLIC_APP_URL = 'https://thanh-pt91.github.io/bang-cong/';
 const dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth:{persistSession:true, autoRefreshToken:true, detectSessionInUrl:true}
 });
@@ -656,6 +698,7 @@ let lastDeleted = null;
 let toastTimer = null;
 let currentUser = null;
 let appStarted = false;
+let authRecoveryActive = false;
 let editContext = null;
 let editSelectedType = 'tiem';
 let editBonus = false;
@@ -686,8 +729,8 @@ async function loadStore(){
       const liveKey = Object.keys(localStorage).find(key=>key.startsWith(STORE_KEY+':') && !key.startsWith(STORE_KEY+':test:') && !key.endsWith(':deletes'));
       liveCopy = liveKey ? localStorage.getItem(liveKey) : localStorage.getItem(STORE_KEY);
     }else{
-      const liveKey = currentUser ? STORE_KEY+':'+currentUser.id : STORE_KEY;
-      liveCopy = localStorage.getItem(liveKey) || localStorage.getItem(STORE_KEY);
+      // Signed-in users must never inherit an unscoped legacy cache from another account.
+      liveCopy = currentUser ? null : localStorage.getItem(STORE_KEY);
     }
     store = JSON.parse(scoped || liveCopy || '{}');
     if(TEST_MODE && !scoped) localStorage.setItem(activeStoreKey(),JSON.stringify(store));
@@ -939,17 +982,148 @@ async function startApp(user){
   else await syncAll();
 }
 
+function setAuthFeedback(message,success=false){
+  const box=document.getElementById('auth-error');
+  if(!box) return;
+  box.textContent=message||'';
+  box.classList.toggle('success',!!success);
+}
+
+function showAuthView(view){
+  const views={login:'auth-login-view',signup:'auth-signup-view',forgot:'auth-forgot-view',reset:'auth-reset-view'};
+  Object.entries(views).forEach(([name,id])=>{
+    const panel=document.getElementById(id);
+    if(panel) panel.hidden=name!==view;
+  });
+  const subtitles={
+    login:'Đăng nhập để lưu và đồng bộ dữ liệu hoa hồng an toàn.',
+    signup:'Tạo tài khoản mới. Dữ liệu bảng công của mỗi tài khoản được lưu riêng.',
+    forgot:'Nhập email đã đăng ký để nhận liên kết đặt lại mật khẩu.',
+    reset:'Tạo mật khẩu mới cho tài khoản của bạn.'
+  };
+  const subtitle=document.getElementById('auth-subtitle');
+  if(subtitle) subtitle.textContent=subtitles[view]||subtitles.login;
+  setAuthFeedback('');
+}
+
+function authRedirectUrl(){
+  if(!['http:','https:'].includes(window.location.protocol)) return AUTH_PUBLIC_APP_URL;
+  const url=new URL(window.location.href);
+  url.searchParams.delete('test');
+  url.hash='';
+  return url.toString();
+}
+
+function setAuthButton(id,busy,label,readyLabel){
+  const button=document.getElementById(id);
+  if(!button) return;
+  button.disabled=busy;
+  button.textContent=busy?label:readyLabel;
+}
+
 async function login(event){
   event.preventDefault();
-  const button=document.getElementById('login-btn');
-  const errorBox=document.getElementById('auth-error');
-  button.disabled=true; button.textContent='Đang đăng nhập…'; errorBox.textContent='';
+  setAuthButton('login-btn',true,'Đang đăng nhập…','Đăng nhập');
+  setAuthFeedback('');
   const email=document.getElementById('login-email').value.trim();
   const password=document.getElementById('login-password').value;
-  const {data,error}=await dbClient.auth.signInWithPassword({email,password});
-  button.disabled=false; button.textContent='Đăng nhập';
-  if(error){ errorBox.textContent='Email hoặc mật khẩu chưa đúng.'; return; }
-  await startApp(data.user);
+  try{
+    const {data,error}=await dbClient.auth.signInWithPassword({email,password});
+    if(error) throw error;
+    await startApp(data.user);
+  }catch(error){ setAuthFeedback('Email hoặc mật khẩu chưa đúng.'); }
+  finally{ setAuthButton('login-btn',false,'Đang đăng nhập…','Đăng nhập'); }
+}
+
+async function signup(event){
+  event.preventDefault();
+  const email=document.getElementById('signup-email').value.trim();
+  const password=document.getElementById('signup-password').value;
+  const confirm=document.getElementById('signup-password-confirm').value;
+  if(password.length<8) return setAuthFeedback('Mật khẩu cần có ít nhất 8 ký tự.');
+  if(password!==confirm) return setAuthFeedback('Hai mật khẩu chưa trùng khớp.');
+  setAuthButton('signup-btn',true,'Đang tạo tài khoản…','Tạo tài khoản');
+  setAuthFeedback('');
+  try{
+    const emailRedirectTo=authRedirectUrl();
+    const {data,error}=await dbClient.auth.signUp({email,password,options:{emailRedirectTo}});
+    if(error) throw error;
+    if(data.session&&data.user){
+      setAuthFeedback('Tạo tài khoản thành công.',true);
+      await startApp(data.user);
+    }else{
+      document.getElementById('signup-password').value='';
+      document.getElementById('signup-password-confirm').value='';
+      showAuthView('login');
+      setAuthFeedback('Nếu email hợp lệ, liên kết xác nhận đã được gửi. Hãy kiểm tra hộp thư và thư rác.',true);
+    }
+  }catch(error){
+    setAuthFeedback(error.message||'Không thể tạo tài khoản. Vui lòng thử lại.');
+  }finally{ setAuthButton('signup-btn',false,'Đang tạo tài khoản…','Tạo tài khoản'); }
+}
+
+async function sendPasswordReset(event){
+  event.preventDefault();
+  const email=document.getElementById('forgot-email').value.trim();
+  setAuthButton('forgot-btn',true,'Đang gửi…','Gửi liên kết đặt lại');
+  setAuthFeedback('');
+  try{
+    const redirectTo=authRedirectUrl();
+    const {error}=await dbClient.auth.resetPasswordForEmail(email,{redirectTo});
+    if(error) throw error;
+    setAuthFeedback('Nếu email đã đăng ký, liên kết đặt lại mật khẩu sẽ được gửi đến hộp thư.',true);
+  }catch(error){ setAuthFeedback(error.message||'Không thể gửi email đặt lại mật khẩu. Vui lòng thử lại.'); }
+  finally{ setAuthButton('forgot-btn',false,'Đang gửi…','Gửi liên kết đặt lại'); }
+}
+
+async function resetPasswordFromEmail(event){
+  event.preventDefault();
+  const password=document.getElementById('recovery-password').value;
+  const confirm=document.getElementById('recovery-password-confirm').value;
+  if(password.length<8) return setAuthFeedback('Mật khẩu cần có ít nhất 8 ký tự.');
+  if(password!==confirm) return setAuthFeedback('Hai mật khẩu chưa trùng khớp.');
+  setAuthButton('recovery-btn',true,'Đang lưu…','Lưu mật khẩu mới');
+  setAuthFeedback('');
+  try{
+    const {error}=await dbClient.auth.updateUser({password});
+    if(error) throw error;
+    authRecoveryActive=false;
+    await dbClient.auth.signOut();
+    currentUser=null;
+    showAuthView('login');
+    setAuthFeedback('Đã đổi mật khẩu. Bạn có thể đăng nhập bằng mật khẩu mới.',true);
+  }catch(error){ setAuthFeedback(error.message||'Không thể cập nhật mật khẩu. Hãy yêu cầu liên kết mới rồi thử lại.'); }
+  finally{ setAuthButton('recovery-btn',false,'Đang lưu…','Lưu mật khẩu mới'); }
+}
+
+function openChangePassword(){
+  ['current-password','new-password','new-password-confirm'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('change-password-error').textContent='';
+  openModal('change-password-modal');
+}
+
+async function changePassword(event){
+  event.preventDefault();
+  if(!currentUser||!currentUser.email) return;
+  const current=document.getElementById('current-password').value;
+  const password=document.getElementById('new-password').value;
+  const confirm=document.getElementById('new-password-confirm').value;
+  const errorBox=document.getElementById('change-password-error');
+  const button=document.getElementById('change-password-btn');
+  errorBox.textContent='';
+  if(password.length<8){ errorBox.textContent='Mật khẩu mới cần có ít nhất 8 ký tự.'; return; }
+  if(password!==confirm){ errorBox.textContent='Hai mật khẩu mới chưa trùng khớp.'; return; }
+  if(password===current){ errorBox.textContent='Mật khẩu mới cần khác mật khẩu hiện tại.'; return; }
+  button.disabled=true; button.textContent='Đang cập nhật…';
+  try{
+    const {error:verifyError}=await dbClient.auth.signInWithPassword({email:currentUser.email,password:current});
+    if(verifyError) throw new Error('Mật khẩu hiện tại chưa đúng.');
+    const {error}=await dbClient.auth.updateUser({password});
+    if(error) throw error;
+    closeModal('change-password-modal');
+    showToast('Đã đổi mật khẩu thành công');
+  }catch(error){ errorBox.textContent=error.message||'Không thể đổi mật khẩu. Vui lòng thử lại.'; }
+  finally{ button.disabled=false; button.textContent='Lưu mật khẩu'; }
 }
 
 async function logout(){
@@ -961,6 +1135,15 @@ async function logout(){
 
 window.addEventListener('online',()=>syncAll());
 window.addEventListener('offline',()=>setSyncState('Đang ngoại tuyến'));
+dbClient.auth.onAuthStateChange((event,session)=>{
+  if(event==='PASSWORD_RECOVERY'){
+    authRecoveryActive=true;
+    currentUser=session&&session.user||null;
+    document.body.classList.remove('authenticated');
+    showAuthView('reset');
+    setAuthFeedback('Liên kết hợp lệ. Hãy đặt mật khẩu mới.',true);
+  }
+});
 document.addEventListener('touchstart',event=>{
   if(!statsDetailType || event.touches.length!==1) return;
   const touch=event.touches[0];
@@ -2488,6 +2671,8 @@ billZoomStage.addEventListener('touchcancel',billZoomTouchEnd,{passive:false});
   }
   const {data,error}=await dbClient.auth.getSession();
   if(error) console.error(error);
+  await new Promise(resolve=>setTimeout(resolve,0));
+  if(authRecoveryActive) return;
   if(data && data.session && data.session.user) await startApp(data.session.user);
 })();
 </script>
