@@ -696,10 +696,32 @@ const BILL_BUCKET = 'bills';
 const BILL_MAX_BYTES = 800 * 1024;
 const SUPABASE_URL = 'https://mcmpxhqbjixnxbwuxpjv.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_tZzdGmF987bN4lr-U8yicA_QL0q9Oyh';
+const WORKER_URL = 'https://bang-cong-api.phanthanh0308.workers.dev';
 const AUTH_PUBLIC_APP_URL = 'https://thanh-pt91.github.io/bang-cong/';
 const dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth:{persistSession:true, autoRefreshToken:true, detectSessionInUrl:true}
 });
+
+async function workerRequest(path, options={}){
+  const {data,error}=await dbClient.auth.getSession();
+  if(error) throw error;
+  const accessToken=data&&data.session&&data.session.access_token;
+  if(!accessToken) throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+  const headers=new Headers(options.headers||{});
+  headers.set('Authorization','Bearer '+accessToken);
+  let body=options.body;
+  if(body && typeof body==='object' && !(body instanceof FormData) && !(body instanceof Blob)){
+    headers.set('Content-Type','application/json');
+    body=JSON.stringify(body);
+  }
+  const response=await fetch(WORKER_URL+path,{...options,headers,body});
+  if(!response.ok){
+    let payload={};try{payload=await response.clone().json();}catch{}
+    throw new Error(payload.error||('Worker phản hồi HTTP '+response.status));
+  }
+  return response;
+}
+async function workerJson(path,options={}){ return await (await workerRequest(path,options)).json(); }
 
 /* ================= State ================= */
 let store = {};          // { "YYYY-MM-DD": [ {id, type, amount, ts} ] }
@@ -834,9 +856,17 @@ async function loadBills(){
     }catch(error){ console.error('Không đọc được ảnh thử nghiệm',error); }
     return;
   }
-  const {data,error}=await dbClient.from('visit_bills').select('visit_id,work_date,storage_path,file_size,created_at,is_checked,checked_at');
-  if(error){ console.warn('Kho ảnh bill chưa được cấu hình',error); return; }
-  (data||[]).forEach(item=>{const paths=parseBillPaths(item.storage_path);billStore[item.visit_id]={visitId:item.visit_id,workDate:item.work_date,paths,path:paths[0]||null,size:Number(item.file_size||0),createdAt:item.created_at,checked:!!item.is_checked,checkedAt:item.checked_at||null,count:paths.length,hasImage:paths.length>0,local:false};});
+  let data=[];
+  try{
+    for(let offset=0;;offset+=1000){
+      const result=await workerJson('/api/bills?limit=1000&offset='+offset);
+      data.push(...(result.data||[]));
+      // Older Worker versions return the whole collection in one response.
+      if(typeof result.next_offset!=='number' || result.done || !result.data || result.data.length<1000) break;
+    }
+  }
+  catch(error){ console.warn('Kho ảnh bill chưa được cấu hình',error); return; }
+  data.forEach(item=>{const paths=parseBillPaths(item.storage_path);billStore[item.visit_id]={visitId:item.visit_id,workDate:item.work_date,paths,path:paths[0]||null,size:Number(item.file_size||0),createdAt:item.created_at,checked:!!item.is_checked,checkedAt:item.checked_at||null,count:paths.length,hasImage:paths.length>0,local:false};});
 }
 
 /* ================= Supabase sync ================= */
@@ -899,16 +929,25 @@ function mergeStoresByFreshness(localStore,remoteStore){
 async function fetchAllEntries(columns){
   const pageSize=1000;
   const rows=[];
-  for(let from=0;;from+=pageSize){
-    const {data,error}=await dbClient.from('entries')
-      .select(columns)
-      .order('created_at',{ascending:true})
-      .range(from,from+pageSize-1);
-    if(error) return {data:null,error};
-    rows.push(...(data||[]));
-    if(!data || data.length<pageSize) break;
+  try{
+    for(let offset=0;;offset+=pageSize){
+      const result=await workerJson('/api/entries?limit='+pageSize+'&offset='+offset);
+      rows.push(...(result.data||[]));
+      // Older Worker versions return the whole collection in one response.
+      if(typeof result.next_offset!=='number' || result.done || !result.data || result.data.length<pageSize) break;
+    }
+    return {data:rows,error:null};
+  }catch(error){
+    return {data:null,error};
   }
-  return {data:rows,error:null};
+}
+
+async function upsertRemoteEntries(rows){
+  for(const group of chunksOf(rows,500)) await workerJson('/api/entries/upsert',{method:'POST',body:{entries:group}});
+}
+
+async function deleteRemoteEntries(ids){
+  for(const group of chunksOf(ids,500)) await workerJson('/api/entries/delete',{method:'POST',body:{ids:group}});
 }
 
 async function syncEntry(entry, dateKey){
@@ -919,8 +958,8 @@ async function syncEntry(entry, dateKey){
   localStorage.setItem(queueKey,JSON.stringify(pending.filter(id=>id!==entry.id)));
   if(!currentUser || !navigator.onLine) return setSyncState('Lưu trên máy');
   setSyncState('Đang đồng bộ…');
-  const {error} = await dbClient.from('entries').upsert(remoteRow(entry,dateKey), {onConflict:'id'});
-  if(error){ console.error(error); setSyncState('Chưa đồng bộ'); return false; }
+  try{ await workerJson('/api/entries/upsert',{method:'POST',body:{entries:[remoteRow(entry,dateKey)]}}); }
+  catch(error){ console.error(error); setSyncState('Chưa đồng bộ'); return false; }
   setSyncState('Đã đồng bộ');
   return true;
 }
@@ -933,8 +972,8 @@ async function removeRemoteEntry(id){
   localStorage.setItem(queueKey,JSON.stringify(pending));
   if(!currentUser || !navigator.onLine) return setSyncState('Lưu trên máy');
   setSyncState('Đang đồng bộ…');
-  const {error} = await dbClient.from('entries').delete().eq('id', id);
-  if(error){ console.error(error); setSyncState('Chưa đồng bộ'); return false; }
+  try{ await workerJson('/api/entries/delete',{method:'POST',body:{ids:[id]}}); }
+  catch(error){ console.error(error); setSyncState('Chưa đồng bộ'); return false; }
   localStorage.setItem(queueKey,JSON.stringify(pending.filter(item=>item!==id)));
   setSyncState('Đã đồng bộ');
   return true;
@@ -946,15 +985,15 @@ async function syncAllLegacy(){
   const queueKey=activeStoreKey()+':deletes';
   const pendingDeletes=JSON.parse(localStorage.getItem(queueKey)||'[]');
   if(pendingDeletes.length){
-    const {error:deleteError}=await dbClient.from('entries').delete().in('id',pendingDeletes);
-    if(deleteError){ console.error(deleteError); setSyncState('Lỗi đồng bộ'); return; }
+    try{ await deleteRemoteEntries(pendingDeletes); }
+    catch(deleteError){ console.error(deleteError); setSyncState('Lỗi đồng bộ'); return; }
     localStorage.setItem(queueKey,'[]');
   }
   const localRows=[];
   Object.keys(store).forEach(dateKey=>(store[dateKey]||[]).forEach(entry=>localRows.push(remoteRow(entry,dateKey))));
   if(localRows.length){
-    const {error:upsertError}=await dbClient.from('entries').upsert(localRows,{onConflict:'id'});
-    if(upsertError){ console.error(upsertError); setSyncState('Lỗi đồng bộ'); return; }
+    try{ await upsertRemoteEntries(localRows); }
+    catch(upsertError){ console.error(upsertError); setSyncState('Lỗi đồng bộ'); return; }
   }
   const {data,error}=await fetchAllEntries('id,work_date,service_type,customer_name,customer_code,amount,commission_rate,created_at,updated_at');
   if(error){ console.error(error); setSyncState('Lỗi đồng bộ'); return; }
@@ -973,8 +1012,8 @@ async function syncAll(){
   const queueKey=activeStoreKey()+':deletes';
   const pendingDeletes=JSON.parse(localStorage.getItem(queueKey)||'[]');
   if(pendingDeletes.length){
-    const {error:deleteError}=await dbClient.from('entries').delete().in('id',pendingDeletes);
-    if(deleteError){ console.error(deleteError); setSyncState('Lỗi đồng bộ'); return; }
+    try{ await deleteRemoteEntries(pendingDeletes); }
+    catch(deleteError){ console.error(deleteError); setSyncState('Lỗi đồng bộ'); return; }
     localStorage.setItem(queueKey,'[]');
   }
 
@@ -991,8 +1030,8 @@ async function syncAll(){
     if(!remote || localTime>remoteTime+1000) uploads.push(remoteRow(entry,dateKey));
   }));
   if(uploads.length){
-    const {error:uploadError}=await dbClient.from('entries').upsert(uploads,{onConflict:'id'});
-    if(uploadError){ console.error(uploadError); setSyncState('Lỗi đồng bộ'); return; }
+    try{ await upsertRemoteEntries(uploads); }
+    catch(uploadError){ console.error(uploadError); setSyncState('Lỗi đồng bộ'); return; }
   }
 
   const {data,error}=await fetchAllEntries(columns);
@@ -1012,11 +1051,14 @@ async function startApp(user){
   if(!TEST_MODE){
     document.body.classList.add('access-pending');
     document.getElementById('main').innerHTML=renderAccessGate('checking');
-    const {data,error}=await dbClient.from('user_access').select('can_write').eq('user_id',user.id).maybeSingle();
-    if(error || !data || data.can_write!==true){
+    let canWrite=false;
+    let accessError=false;
+    try{ const access=await workerJson('/api/access'); canWrite=access.can_write===true; }
+    catch(error){ console.error('Không kiểm tra được quyền trên Cloudflare',error); accessError=true; }
+    if(!canWrite){
       store={}; billStore={}; appStarted=false;
-      setSyncState(error?'Không kiểm tra được quyền':'Chờ được cấp quyền');
-      document.getElementById('main').innerHTML=renderAccessGate(error?'error':'pending');
+      setSyncState(accessError?'Lỗi đồng bộ':'Chờ được cấp quyền');
+      document.getElementById('main').innerHTML=renderAccessGate(accessError?'error':'pending');
       return;
     }
     document.body.classList.remove('access-pending');
@@ -2416,28 +2458,14 @@ async function saveBillBlobs(workDate,visitId,blobs,replaceIndex=null){
     return;
   }
   if(!currentUser) throw new Error('Vui lòng đăng nhập lại');
-  const safeVisit=String(visitId).replace(/[^a-zA-Z0-9_-]/g,'_');
-  const oldPaths=pathsForBill(existing);
-  const uploadPaths=[];
-  try{
-    for(let index=0;index<blobs.length;index++){
-      const path=currentUser.id+'/'+workDate.slice(0,4)+'/'+workDate.slice(5,7)+'/'+safeVisit+'-'+Date.now()+'-'+index+'-'+Math.random().toString(36).slice(2,7)+'.jpg';
-      const {error:uploadError}=await dbClient.storage.from(BILL_BUCKET).upload(path,blobs[index],{contentType:'image/jpeg',cacheControl:'3600',upsert:false});
-      if(uploadError) throw new Error('Kho ảnh chưa được cấu hình hoặc không có quyền tải ảnh.');
-      uploadPaths.push(path);
-    }
-    const nextPaths=replaceIndex===null?oldPaths.concat(uploadPaths):oldPaths.flatMap((path,index)=>index===replaceIndex?uploadPaths:[path]);
-    const removedPaths=replaceIndex===null?[]:oldPaths.filter((path,index)=>index===replaceIndex);
-    const nextSize=Number(existing&&existing.size||0)+blobs.reduce((sum,blob)=>sum+blob.size,0)-(replaceIndex===null?0:Math.round(Number(existing&&existing.size||0)/Math.max(1,oldPaths.length)));
-    const row={user_id:currentUser.id,visit_id:visitId,work_date:workDate,storage_path:JSON.stringify(nextPaths),file_size:Math.max(0,nextSize),is_checked:checked,checked_at:checkedAt,updated_at:createdAt};
-  const {error:rowError}=await dbClient.from('visit_bills').upsert(row,{onConflict:'user_id,visit_id'});
-    if(rowError) throw new Error('Chưa tạo bảng quản lý ảnh bill.');
-    if(removedPaths.length) await dbClient.storage.from(BILL_BUCKET).remove(removedPaths);
-    billStore[visitId]={visitId,workDate,path:nextPaths[0]||null,paths:nextPaths,size:Math.max(0,nextSize),createdAt,checked,checkedAt,count:nextPaths.length,hasImage:nextPaths.length>0,local:false};
-  }catch(error){
-    if(uploadPaths.length) await dbClient.storage.from(BILL_BUCKET).remove(uploadPaths);
-    throw error;
-  }
+  const form=new FormData();
+  form.append('visit_id',String(visitId));
+  form.append('work_date',String(workDate));
+  if(replaceIndex!==null) form.append('replace_index',String(replaceIndex));
+  blobs.forEach((blob,index)=>form.append('files',blob,'bill-'+Date.now()+'-'+index+'.jpg'));
+  const result=await workerJson('/api/bills/upload',{method:'POST',body:form});
+  const nextPaths=parseBillPaths(result.paths);
+  billStore[visitId]={visitId,workDate,path:nextPaths[0]||null,paths:nextPaths,size:Number(result.file_size||0),createdAt,checked,checkedAt,count:nextPaths.length,hasImage:nextPaths.length>0,local:false};
 }
 
 async function viewBill(visitId,index=0){
@@ -2466,9 +2494,10 @@ async function renderCurrentBillImage(){
       billObjectUrl=URL.createObjectURL(blobs[billViewerContext.index]); imageUrl=billObjectUrl;
     }else{
       if(!paths.length) throw new Error('Không tìm thấy đường dẫn ảnh bill');
-      const {data,error}=await dbClient.storage.from(BILL_BUCKET).createSignedUrl(paths[billViewerContext.index],3600);
-      if(error || !data) throw new Error('Không thể mở ảnh bill');
-      imageUrl=data.signedUrl;
+      if(!paths.length) throw new Error('Không tìm thấy đường dẫn ảnh bill');
+      const response=await workerRequest('/api/bills/image?path='+encodeURIComponent(paths[billViewerContext.index]));
+      billObjectUrl=URL.createObjectURL(await response.blob());
+      imageUrl=billObjectUrl;
     }
     const currentVisit=findVisitInfo(visitId);
     document.getElementById('bill-viewer-title').textContent='Ảnh bill '+(billViewerContext.index+1)+'/'+count;
@@ -2527,14 +2556,7 @@ async function toggleBillCheckState(visitId,fromViewer){
       record.checked=checked; record.checkedAt=checkedAt; record.workDate=visit.key;
       await idbBillPut(record);
     }else{
-      const values={is_checked:checked,checked_at:checkedAt,updated_at:new Date().toISOString()};
-      let error=null;
-      if(meta){
-        ({error}=await dbClient.from('visit_bills').update(values).eq('visit_id',visitId).eq('user_id',currentUser.id));
-      }else{
-        ({error}=await dbClient.from('visit_bills').upsert({user_id:currentUser.id,visit_id:visitId,work_date:visit.key,...values},{onConflict:'user_id,visit_id'}));
-      }
-      if(error) throw new Error('Không thể cập nhật trạng thái check bill');
+      await workerJson('/api/bills/check',{method:'POST',body:{visit_id:visitId,work_date:visit.key,is_checked:checked,checked_at:checkedAt}});
     }
     if(!meta){
       meta=billStore[visitId]={visitId,workDate:visit.key,path:null,size:0,createdAt:new Date().toISOString(),checked:false,checkedAt:null,hasImage:false,local:TEST_MODE};
@@ -2684,15 +2706,7 @@ async function deleteBillImagesOnly(visitIds){
       if(record){record.blobs=[];record.blob=null;record.size=0;await idbBillPut(record);}
     }
   }else{
-    const paths=ids.flatMap(id=>pathsForBill(billStore[id]));
-    for(const group of chunksOf(paths,1000)){
-      const {error}=await dbClient.storage.from(BILL_BUCKET).remove(group);
-      if(error) throw new Error('Không thể xóa một số ảnh trên Supabase');
-    }
-    for(const group of chunksOf(ids,500)){
-      const {error}=await dbClient.from('visit_bills').update({storage_path:null,file_size:0,updated_at:new Date().toISOString()}).in('visit_id',group).eq('user_id',currentUser.id);
-      if(error) throw new Error('Đã xóa file nhưng chưa cập nhật được danh sách ảnh');
-    }
+    for(const group of chunksOf(ids,500)) await workerJson('/api/bills/delete-images',{method:'POST',body:{visit_ids:group}});
   }
   ids.forEach(id=>{
     billStore[id].path=null;
@@ -2717,13 +2731,9 @@ async function deleteBillImageAt(visitId,index){
   }
   const paths=pathsForBill(meta);
   if(index<0||index>=paths.length) return;
-  const removedPath=paths[index];
+  await workerJson('/api/bills/delete-image',{method:'POST',body:{visit_id:visitId,index}});
   const nextPaths=paths.filter((_,photoIndex)=>photoIndex!==index);
   const nextSize=nextPaths.length?Math.max(1,Math.round(Number(meta.size||0)*nextPaths.length/paths.length)):0;
-  const {error}=await dbClient.from('visit_bills').update({storage_path:nextPaths.length?JSON.stringify(nextPaths):null,file_size:nextSize,updated_at:new Date().toISOString()}).eq('visit_id',visitId).eq('user_id',currentUser.id);
-  if(error) throw new Error('Không thể cập nhật danh sách ảnh bill');
-  const {error:removeError}=await dbClient.storage.from(BILL_BUCKET).remove([removedPath]);
-  if(removeError) console.warn('Không xóa được file bill cũ trên kho',removeError);
   Object.assign(meta,{paths:nextPaths,path:nextPaths[0]||null,size:nextSize,count:nextPaths.length,hasImage:nextPaths.length>0});
 }
 
@@ -2733,15 +2743,7 @@ async function deleteBillAssets(visitIds){
   if(TEST_MODE){
     await Promise.all(ids.map(id=>idbBillDelete(id)));
   }else{
-    const paths=ids.flatMap(id=>pathsForBill(billStore[id]));
-    for(const group of chunksOf(paths,1000)){
-      const {error}=await dbClient.storage.from(BILL_BUCKET).remove(group);
-      if(error) throw new Error('Không thể xóa một số ảnh trên Supabase');
-    }
-    for(const group of chunksOf(ids,500)){
-      const {error}=await dbClient.from('visit_bills').delete().in('visit_id',group);
-      if(error) throw new Error('Đã xóa file nhưng chưa cập nhật được danh sách ảnh');
-    }
+    for(const group of chunksOf(ids,500)) await workerJson('/api/bills/delete',{method:'POST',body:{visit_ids:group}});
   }
   ids.forEach(id=>delete billStore[id]);
 }
@@ -2767,7 +2769,7 @@ async function updateBillWorkDate(visitId,workDate){
     const record=await idbBillGet(visitId);
     if(record){record.workDate=workDate; await idbBillPut(record);}
   }else{
-    await dbClient.from('visit_bills').update({work_date:workDate,updated_at:new Date().toISOString()}).eq('visit_id',visitId);
+    await workerJson('/api/bills/work-date',{method:'POST',body:{visit_id:visitId,work_date:workDate}});
   }
 }
 
@@ -2778,7 +2780,7 @@ async function rekeyBill(oldVisitId,newVisitId){
     const record=await idbBillGet(oldVisitId);
     if(record){await idbBillDelete(oldVisitId); record.key=billRecordKey(newVisitId); record.visitId=newVisitId; await idbBillPut(record);}
   }else{
-    await dbClient.from('visit_bills').update({visit_id:newVisitId,updated_at:new Date().toISOString()}).eq('visit_id',oldVisitId);
+    await workerJson('/api/bills/rekey',{method:'POST',body:{old_visit_id:oldVisitId,new_visit_id:newVisitId}});
   }
   delete billStore[oldVisitId];
   billStore[newVisitId]={...meta,visitId:newVisitId};
