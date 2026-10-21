@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#f7f3ef">
   <title>Chuyển dữ liệu sang Cloudflare · Bảng Công</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root{color-scheme:light;--ink:#302b28;--muted:#837a73;--line:#e9e1da;--accent:#86626c;--bg:#f7f3ef;--card:#fff}
     *{box-sizing:border-box}body{margin:0;padding:24px;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
@@ -24,11 +23,12 @@
   <h1>Chuyển dữ liệu sang Cloudflare</h1>
   <div class="muted">Bảng Công · dữ liệu dịch vụ sang D1, ảnh bill sang R2</div>
   <div class="notice">Công cụ này chỉ chuyển dữ liệu của tài khoản đang đăng nhập. Dữ liệu gốc trên Supabase sẽ được giữ nguyên. Mỗi tài khoản cần chạy một lần bằng chính tài khoản đó.</div>
-  <div id="auth-panel" class="hidden">
+  <div id="auth-panel">
     <p>Đăng nhập bằng tài khoản đang dùng trong Bảng Công.</p>
     <label for="email">Email</label><input id="email" type="email" autocomplete="username">
     <label for="password">Mật khẩu</label><input id="password" type="password" autocomplete="current-password">
     <div class="row"><button id="login">Đăng nhập</button></div>
+    <p id="login-status" class="muted" aria-live="polite"></p>
   </div>
   <div id="app-panel" class="hidden">
     <p>Đang đăng nhập: <span class="identity" id="identity"></span></p>
@@ -42,7 +42,6 @@
 const SUPABASE_URL='https://mcmpxhqbjixnxbwuxpjv.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_tZzdGmF987bN4lr-U8yicA_QL0q9Oyh';
 const WORKER_URL='https://bang-cong-api.phanthanh0308.workers.dev';
-const supabase=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const authPanel=document.getElementById('auth-panel'),appPanel=document.getElementById('app-panel'),logEl=document.getElementById('log');
 let session=null,canWrite=false;
 function log(message){logEl.textContent+='\n'+message;logEl.scrollTop=logEl.scrollHeight;}
@@ -70,10 +69,17 @@ async function showSession(current){
   }catch(error){document.getElementById('permission').textContent='Chưa kết nối được Worker: '+error.message;document.getElementById('permission').className='bad';}
 }
 document.getElementById('login').onclick=async()=>{
-  const {data,error}=await supabase.auth.signInWithPassword({email:document.getElementById('email').value.trim(),password:document.getElementById('password').value});
-  if(error){alert('Đăng nhập không thành công: '+error.message);return;} await showSession(data.session);
+  const button=document.getElementById('login'),status=document.getElementById('login-status');
+  button.disabled=true;status.textContent='Đang đăng nhập…';
+  try{
+    const response=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:SUPABASE_PUBLISHABLE_KEY,'Content-Type':'application/json'},body:JSON.stringify({email:document.getElementById('email').value.trim(),password:document.getElementById('password').value})});
+    const payload=await response.json();
+    if(!response.ok)throw new Error(payload.msg||payload.message||payload.error_description||payload.error||'Đăng nhập không thành công.');
+    await showSession(payload);status.textContent='';
+  }catch(error){status.textContent='Đăng nhập chưa được: '+error.message;status.className='bad';}
+  finally{button.disabled=false;}
 };
-document.getElementById('logout').onclick=async()=>{await supabase.auth.signOut();await showSession(null);};
+document.getElementById('logout').onclick=async()=>{await showSession(null);};
 document.getElementById('migrate').onclick=async()=>{
   if(!session||!canWrite)return;
   const button=document.getElementById('migrate');button.disabled=true;logEl.textContent='Đang chuyển dịch vụ…';setProgress(0);
@@ -101,8 +107,6 @@ document.getElementById('migrate').onclick=async()=>{
   }catch(error){log('TẠM DỪNG: '+error.message);log('Bạn có thể bấm chuyển lại. Các dịch vụ và ảnh được ghi theo cách có thể chạy lại an toàn.');}
   finally{button.disabled=false;}
 };
-supabase.auth.getSession().then(({data})=>showSession(data.session));
-supabase.auth.onAuthStateChange((_event,newSession)=>{session=newSession;});
 </script>
 </body>
 </html>
