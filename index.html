@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#FBF6F3">
 <link rel="manifest" href="./manifest.webmanifest?v=2">
 <link rel="icon" type="image/png" sizes="192x192" href="./app-icon-192.png?v=2">
-<link rel="apple-touch-icon" sizes="180x180" href="/bang-cong/apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/bang-cong/apple-touch-icon-2026.png?v=1">
 <title>Bảng Công</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap');
@@ -456,14 +456,17 @@
   .bill-zoom-stage{width:100%; height:48vh; min-height:240px; max-height:500px; overflow:hidden; display:flex; align-items:center; justify-content:center; border-radius:15px; background:#EEE6E1; margin:12px 0; touch-action:none;}
   .bill-viewer-image{display:block; width:100%; height:100%; object-fit:contain; transform-origin:center center; user-select:none; -webkit-user-drag:none; will-change:transform;}
   .bill-viewer-image.zoom-anim{transition:transform .18s ease;}
-  .bill-viewer-meta{font-size:11.5px; color:var(--ink-soft); text-align:center;}
+   .bill-viewer-meta{font-size:11.5px; color:var(--ink-soft); text-align:center;}
+   .bill-gallery-nav{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:9px}
+   .bill-gallery-nav button{width:34px;height:32px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--rose-deep);font-size:18px}
+   .bill-gallery-nav button:disabled{opacity:.35}
   .bill-check-btn{width:100%; margin-top:12px; border:1.5px solid #B8DEC6; border-radius:12px; padding:11px; background:#F2FAF5; color:#26834A; font-size:13px; font-weight:800;}
   .bill-check-btn.checked{background:#2E9B59; border-color:#2E9B59; color:#fff;}
   .bill-zoom-controls{display:flex; justify-content:center; align-items:center; gap:8px; margin-top:10px;}
   .bill-zoom-controls button{min-width:38px; height:34px; border:1px solid var(--line); border-radius:10px; background:var(--card); color:var(--rose-deep); font-size:16px; font-weight:700;}
   .bill-zoom-controls .fit{padding:0 10px; font-size:10.5px; color:var(--ink-soft);}
   .bill-zoom-level{min-width:45px; text-align:center; color:var(--ink-soft); font-size:11px; font-weight:700;}
-  .bill-viewer-actions{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:16px;}
+   .bill-viewer-actions{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:16px;}
   .bill-viewer-actions button{border:none; border-radius:12px; padding:11px 6px; font-size:12px; font-weight:700;}
   .bill-manager-link{width:100%; margin-top:12px; padding:14px; display:flex; align-items:center; gap:11px; text-align:left; border:1px solid var(--line); border-radius:16px; background:var(--card); box-shadow:var(--shadow); color:var(--ink);}
   .bill-manager-link .icon{width:38px; height:38px; flex-shrink:0; display:flex; align-items:center; justify-content:center; border-radius:12px; background:#F3E7E3; color:var(--rose-deep); font-size:18px;}
@@ -556,6 +559,7 @@
       <div class="auth-field"><label for="recovery-password">Mật khẩu mới (tối thiểu 8 ký tự)</label><input id="recovery-password" type="password" autocomplete="new-password" minlength="8" required placeholder="Tạo mật khẩu mới"></div>
       <div class="auth-field"><label for="recovery-password-confirm">Nhập lại mật khẩu mới</label><input id="recovery-password-confirm" type="password" autocomplete="new-password" minlength="8" required placeholder="Nhập lại mật khẩu mới"></div>
       <button class="auth-submit" id="recovery-btn" type="submit">Lưu mật khẩu mới</button>
+      <button class="auth-link auth-back" type="button" onclick="showAuthView('login')">Quay lại đăng nhập</button>
     </form>
     <div id="auth-error" role="status" aria-live="polite"></div>
   </div>
@@ -612,19 +616,21 @@
     <div class="modal-actions"><button class="modal-cancel" onclick="closeModal('move-visit-modal')">Hủy</button><button class="modal-primary" onclick="saveMovedVisit()">Chuyển ngày</button></div>
   </div>
 </div>
-<input id="bill-file-input" type="file" accept="image/*" hidden onchange="handleBillFile(this.files && this.files[0])">
+<input id="bill-file-input" type="file" accept="image/*" multiple hidden onchange="handleBillFiles(this.files)">
 <div class="modal-backdrop" id="bill-viewer-modal" onclick="billViewerBackdrop(event)">
   <div class="app-modal" role="dialog" aria-modal="true" aria-labelledby="bill-viewer-title">
     <div class="modal-icon">▧</div><div class="modal-title" id="bill-viewer-title">Ảnh bill</div>
     <div class="modal-sub" id="bill-viewer-customer"></div>
     <div class="bill-zoom-stage" id="bill-zoom-stage"><img class="bill-viewer-image" id="bill-viewer-image" alt="Ảnh bill của khách hàng" draggable="false"></div>
     <div class="bill-viewer-meta" id="bill-viewer-meta"></div>
+    <div class="bill-gallery-nav"><button id="bill-prev-image" onclick="changeBillImage(-1)" aria-label="Ảnh trước">‹</button><span id="bill-gallery-count">1/1</span><button id="bill-next-image" onclick="changeBillImage(1)" aria-label="Ảnh tiếp theo">›</button></div>
     <div class="bill-zoom-controls"><button onclick="changeBillZoom(-0.5)" aria-label="Thu nhỏ">−</button><span class="bill-zoom-level" id="bill-zoom-level">100%</span><button onclick="changeBillZoom(0.5)" aria-label="Phóng to">+</button><button class="fit" onclick="resetBillZoom()">Vừa màn hình</button></div>
     <button class="bill-check-btn" id="bill-check-button" onclick="toggleCurrentBillCheck()">✓ Check bill</button>
     <div class="bill-viewer-actions">
       <button class="modal-cancel" onclick="closeBillViewer()">Đóng</button>
-      <button class="modal-primary" onclick="replaceCurrentBill()">Thay ảnh</button>
-      <button class="modal-danger" onclick="askDeleteCurrentBill()">Xóa ảnh</button>
+      <button class="modal-primary" onclick="addBillsToCurrentVisit()">＋ Thêm ảnh</button>
+      <button class="modal-cancel" onclick="replaceCurrentBill()">Thay ảnh này</button>
+      <button class="modal-danger" onclick="askDeleteCurrentBill()">Xóa ảnh này</button>
     </div>
   </div>
 </div>
@@ -732,6 +738,8 @@ let billViewerContext = null;
 let billDeleteContext = null;
 let billManagerOpen = false;
 let billObjectUrl = null;
+let pageBackStack = [];
+let ignoreNextPopstate = false;
 let billZoomState = {scale:1,x:0,y:0,startScale:1,startDistance:0,startX:0,startY:0,originX:0,originY:0,panning:false,pinching:false};
 
 /* ================= Storage helpers ================= */
@@ -764,6 +772,14 @@ async function saveStore(){
 
 /* ================= Bill image storage ================= */
 function billRecordKey(visitId){ return (currentUser ? currentUser.id : 'guest')+':'+visitId; }
+function parseBillPaths(value){
+  if(Array.isArray(value)) return value.filter(path=>typeof path==='string'&&path);
+  if(typeof value!=='string'||!value) return [];
+  try{ const parsed=JSON.parse(value); if(Array.isArray(parsed)) return parsed.filter(path=>typeof path==='string'&&path); }catch{}
+  return [value];
+}
+function pathsForBill(item){ return parseBillPaths(item&&(item.paths||item.path||item.storage_path)); }
+function localBlobsForBill(record){ return Array.isArray(record&&record.blobs)?record.blobs:(record&&record.blob?[record.blob]:[]); }
 function openBillDb(){
   return new Promise((resolve,reject)=>{
     const request=indexedDB.open('bang-cong-bills',1);
@@ -814,13 +830,13 @@ async function loadBills(){
   if(TEST_MODE){
     try{
       const records=await idbBillGetAll();
-      records.forEach(item=>billStore[item.visitId]={visitId:item.visitId,workDate:item.workDate,size:item.size||0,createdAt:item.createdAt,checked:!!item.checked,checkedAt:item.checkedAt||null,hasImage:!!item.blob,local:true});
+      records.forEach(item=>{const blobs=localBlobsForBill(item);billStore[item.visitId]={visitId:item.visitId,workDate:item.workDate,size:item.size||blobs.reduce((sum,blob)=>sum+(blob&&blob.size||0),0),createdAt:item.createdAt,checked:!!item.checked,checkedAt:item.checkedAt||null,count:blobs.length,hasImage:blobs.length>0,local:true};});
     }catch(error){ console.error('Không đọc được ảnh thử nghiệm',error); }
     return;
   }
   const {data,error}=await dbClient.from('visit_bills').select('visit_id,work_date,storage_path,file_size,created_at,is_checked,checked_at');
   if(error){ console.warn('Kho ảnh bill chưa được cấu hình',error); return; }
-  (data||[]).forEach(item=>billStore[item.visit_id]={visitId:item.visit_id,workDate:item.work_date,path:item.storage_path||null,size:Number(item.file_size||0),createdAt:item.created_at,checked:!!item.is_checked,checkedAt:item.checked_at||null,hasImage:!!item.storage_path,local:false});
+  (data||[]).forEach(item=>{const paths=parseBillPaths(item.storage_path);billStore[item.visit_id]={visitId:item.visit_id,workDate:item.work_date,paths,path:paths[0]||null,size:Number(item.file_size||0),createdAt:item.created_at,checked:!!item.is_checked,checkedAt:item.checked_at||null,count:paths.length,hasImage:paths.length>0,local:false};});
 }
 
 /* ================= Supabase sync ================= */
@@ -1340,7 +1356,51 @@ function renderComparison(current,previous){
 }
 
 /* ================= Rendering ================= */
+function pushAppPageBack(callback){
+  pageBackStack.push(callback);
+  history.pushState({bangCongPageDepth:pageBackStack.length},'',location.href);
+}
+
+function goBackAppPage(fallback){
+  const callback=pageBackStack.pop();
+  if(callback){
+    ignoreNextPopstate=true;
+    callback();
+    history.back();
+    setTimeout(()=>{ignoreNextPopstate=false;},600);
+    return;
+  }
+  if(typeof fallback==='function') fallback();
+}
+
+window.addEventListener('popstate',()=>{
+  if(ignoreNextPopstate){ignoreNextPopstate=false;return;}
+  const callback=pageBackStack.pop();
+  if(callback) callback();
+});
+
+let backSwipeStart=null;
+document.addEventListener('touchstart',event=>{
+  if(event.touches.length!==1 || !pageBackStack.length){backSwipeStart=null;return;}
+  const target=event.target;
+  if(target.closest('input,textarea,select,button,a,[role="slider"],.modal-backdrop,.bill-zoom-stage')){backSwipeStart=null;return;}
+  const touch=event.touches[0];
+  backSwipeStart={x:touch.clientX,y:touch.clientY};
+},{passive:true});
+
+document.addEventListener('touchend',event=>{
+  if(!backSwipeStart || !pageBackStack.length){backSwipeStart=null;return;}
+  const touch=event.changedTouches[0];
+  const deltaX=touch.clientX-backSwipeStart.x;
+  const deltaY=touch.clientY-backSwipeStart.y;
+  backSwipeStart=null;
+  if(deltaX>=80 && deltaX>Math.abs(deltaY)*1.35) goBackAppPage();
+},{passive:true});
+
 function setTab(t){
+  if(t===tab && t==='stats'){statsDetailType=null;billManagerOpen=false;}
+  if(t===tab && t==='search') customerHistoryContext=null;
+  pageBackStack=[];
   tab = t;
   if(t!=='stats') statsDetailType=null;
   if(t!=='stats') billManagerOpen=false;
@@ -1444,6 +1504,8 @@ function clearCustomerSearch(){
 }
 
 function openCustomerHistory(customerCode,customerName,focusDate){
+  const previous=customerHistoryContext;
+  pushAppPageBack(()=>{customerHistoryContext=previous;render();window.scrollTo(0,0);});
   customerHistoryContext={customerCode,customerName,focusDate};
   render();
   window.scrollTo(0,0);
@@ -1551,7 +1613,7 @@ function renderCustomerHistoryTab(){
   const displayName=customerName||'Khách hàng';
   return `<div class="search-page">
     <div class="customer-history-head">
-      <button class="customer-history-back" aria-label="Quay lại tìm kiếm" onclick="customerHistoryContext=null;render();window.scrollTo(0,0)">‹</button>
+      <button class="customer-history-back" aria-label="Quay lại tìm kiếm" onclick="goBackAppPage(()=>{customerHistoryContext=null;render();window.scrollTo(0,0)})">‹</button>
       <div><div class="customer-history-title">${escapeHtml(displayName)}</div><div class="customer-history-sub">${customerCode?'MSKH: '+escapeHtml(customerCode)+' · ':''}${dateKeys.length} ngày · ${allEntries.length} dịch vụ</div></div>
     </div>
     <div class="summary"><div class="box"><div class="k">Tổng dịch vụ</div><div class="v tnum">${allEntries.length}</div></div><div class="box hi"><div class="k">Tổng tiền</div><div class="v tnum">${fmtVND(total)}</div></div></div>
@@ -1714,6 +1776,7 @@ function renderStatsTab(){
   const tiemLen = agg.commission>0 ? tiemPct*c : 0;
   const mayLen = agg.commission>0 ? mayPct*c : 0;
   const billItems=Object.values(billStore).filter(hasBillImage);
+  const billPhotoCount=billItems.reduce((sum,item)=>sum+Number(item.count||pathsForBill(item).length||1),0);
   const billBytes=billItems.reduce((sum,item)=>sum+Number(item.size||0),0);
   const billChecked=billItems.filter(item=>item.checked).length;
 
@@ -1786,7 +1849,7 @@ function renderStatsTab(){
       </div>
     </div>
     <button class="bill-manager-link" onclick="openBillManager()">
-      <span class="icon">▧</span><span class="info"><span class="name">Quản lý ảnh bill</span><span class="sub">${billChecked}/${billItems.length} đã check · ${fmtBytes(billBytes)} · Xóa theo tháng</span></span><span class="arrow">›</span>
+      <span class="icon">▧</span><span class="info"><span class="name">Quản lý ảnh bill</span><span class="sub">${billChecked}/${billItems.length} lượt đã check · ${billPhotoCount} ảnh · ${fmtBytes(billBytes)} · Xóa theo tháng</span></span><span class="arrow">›</span>
     </button>
   `;
 }
@@ -1809,8 +1872,12 @@ function statsPeriodContext(){
   return {dates,label:'Năm '+statsAnchor.getFullYear(),sub:dates.length+' ngày trong năm'};
 }
 
-function openBillManager(){ billManagerOpen=true; statsDetailType=null; render(); window.scrollTo(0,0); }
-function closeBillManager(){ billManagerOpen=false; render(); window.scrollTo(0,0); }
+function openBillManager(){
+  const previous={billManagerOpen,statsDetailType};
+  pushAppPageBack(()=>{billManagerOpen=previous.billManagerOpen;statsDetailType=previous.statsDetailType;render();window.scrollTo(0,0);});
+  billManagerOpen=true; statsDetailType=null; render(); window.scrollTo(0,0);
+}
+function closeBillManager(){ goBackAppPage(()=>{billManagerOpen=false;render();window.scrollTo(0,0);}); }
 function billMonthKey(item){
   if(item.workDate && /^\d{4}-\d{2}/.test(item.workDate)) return item.workDate.slice(0,7);
   return String(item.createdAt||keyOf(new Date())).slice(0,7);
@@ -1819,29 +1886,34 @@ function groupedBillsByMonth(){
   const groups={};
   Object.values(billStore).filter(hasBillImage).forEach(item=>{
     const month=billMonthKey(item);
-    if(!groups[month]) groups[month]={month,items:[],bytes:0,checked:0};
+    if(!groups[month]) groups[month]={month,items:[],bytes:0,checked:0,photos:0};
     groups[month].items.push(item);
     groups[month].bytes+=Number(item.size||0);
+    groups[month].photos+=Number(item.count||pathsForBill(item).length||1);
     if(item.checked) groups[month].checked++;
   });
   return Object.values(groups).sort((a,b)=>b.month.localeCompare(a.month));
 }
 function renderBillManager(){
   const groups=groupedBillsByMonth();
-  const totalCount=groups.reduce((sum,group)=>sum+group.items.length,0);
+  const totalCount=groups.reduce((sum,group)=>sum+group.photos,0);
   const totalBytes=groups.reduce((sum,group)=>sum+group.bytes,0);
   return `<div class="bill-manager-page">
     <div class="bill-manager-head"><button onclick="closeBillManager()">‹</button><div><h2>Quản lý ảnh bill</h2><div class="sub">Chỉ xóa ảnh, không xóa dữ liệu dịch vụ</div></div></div>
     <div class="bill-manager-summary summary"><div class="box"><div class="k">Tổng số ảnh</div><div class="v tnum">${totalCount}</div></div><div class="box hi"><div class="k">Dung lượng</div><div class="v tnum">${fmtBytes(totalBytes)}</div></div></div>
     ${groups.length ? groups.map(group=>{
       const [year,month]=group.month.split('-');
-      return `<div class="bill-month-row"><div class="bill-month-info"><div class="bill-month-name">Tháng ${month}/${year}</div><div class="bill-month-meta"><span class="bill-month-checked">${group.checked}/${group.items.length} đã check</span> · ${fmtBytes(group.bytes)}</div></div><button class="bill-month-delete" onclick="askDeleteBillMonth('${group.month}')">Xóa ảnh</button></div>`;
+      return `<div class="bill-month-row"><div class="bill-month-info"><div class="bill-month-name">Tháng ${month}/${year}</div><div class="bill-month-meta">${group.photos} ảnh · <span class="bill-month-checked">${group.checked}/${group.items.length} lượt đã check</span> · ${fmtBytes(group.bytes)}</div></div><button class="bill-month-delete" onclick="askDeleteBillMonth('${group.month}')">Xóa ảnh</button></div>`;
     }).join('') : '<div class="empty"><div class="ic">▧</div>Chưa có ảnh bill nào.</div>'}
   </div>`;
 }
 
-function openStatsDetail(type){ statsDetailType=type; render(); window.scrollTo(0,0); }
-function closeStatsDetail(){ statsDetailType=null; render(); window.scrollTo(0,0); }
+function openStatsDetail(type){
+  const previous=statsDetailType;
+  pushAppPageBack(()=>{statsDetailType=previous;render();window.scrollTo(0,0);});
+  statsDetailType=type; render(); window.scrollTo(0,0);
+}
+function closeStatsDetail(){ goBackAppPage(()=>{statsDetailType=null;render();window.scrollTo(0,0);}); }
 
 function renderStatsDetail(){
   const context=statsPeriodContext();
@@ -2261,8 +2333,8 @@ function findVisitInfo(visitId){
   return null;
 }
 
-function chooseBill(key,visitId){
-  billUploadContext={key,visitId};
+function chooseBill(key,visitId,replaceIndex=null){
+  billUploadContext={key,visitId,replaceIndex};
   const input=document.getElementById('bill-file-input');
   input.value='';
   input.click();
@@ -2301,19 +2373,25 @@ async function compressBillImage(file){
   return result;
 }
 
-async function handleBillFile(file){
+async function handleBillFiles(fileList){
   const context=billUploadContext;
-  if(!file || !context) return;
-  if(file.type && !file.type.startsWith('image/')) return showToast('Vui lòng chọn một file ảnh');
-  setSyncState('Đang nén ảnh…');
+  const files=Array.from(fileList||[]);
+  if(!files.length || !context) return;
+  if(files.some(file=>file.type&&!file.type.startsWith('image/'))) return showToast('Vui lòng chỉ chọn file ảnh');
+  setSyncState('Đang nén '+files.length+' ảnh…');
   let saved=false;
   try{
-    const compressed=await compressBillImage(file);
-    if(!compressed || compressed.size>BILL_MAX_BYTES) throw new Error('Ảnh quá lớn, vui lòng chọn ảnh khác.');
-    await saveBillBlob(context.key,context.visitId,compressed);
+    const compressed=[];
+    for(let index=0;index<files.length;index++){
+      setSyncState('Đang nén ảnh '+(index+1)+'/'+files.length+'…');
+      const blob=await compressBillImage(files[index]);
+      if(!blob || blob.size>BILL_MAX_BYTES) throw new Error('Ảnh '+(index+1)+' quá lớn, vui lòng chọn ảnh khác.');
+      compressed.push(blob);
+    }
+    await saveBillBlobs(context.key,context.visitId,compressed,context.replaceIndex);
     saved=true;
     render();
-    showToast('Đã nén '+fmtBytes(file.size)+' → '+fmtBytes(compressed.size));
+    showToast('Đã lưu '+compressed.length+' ảnh bill');
   }catch(error){
     console.error(error);
     showToast(error.message||'Không thể lưu ảnh bill');
@@ -2323,52 +2401,93 @@ async function handleBillFile(file){
   }
 }
 
-async function saveBillBlob(workDate,visitId,blob){
+async function saveBillBlobs(workDate,visitId,blobs,replaceIndex=null){
   const existing=billStore[visitId];
   const createdAt=new Date().toISOString();
   const checked=!!(existing&&existing.checked);
   const checkedAt=existing&&existing.checkedAt||null;
   if(TEST_MODE){
-    await idbBillPut({key:billRecordKey(visitId),userId:currentUser.id,visitId,workDate,blob,size:blob.size,createdAt,checked,checkedAt});
-    billStore[visitId]={visitId,workDate,size:blob.size,createdAt,checked,checkedAt,hasImage:true,local:true};
+    const oldRecord=await idbBillGet(visitId);
+    const oldBlobs=localBlobsForBill(oldRecord);
+    const nextBlobs=replaceIndex===null?oldBlobs.concat(blobs):oldBlobs.flatMap((blob,index)=>index===replaceIndex?blobs:[blob]);
+    const size=nextBlobs.reduce((sum,blob)=>sum+(blob&&blob.size||0),0);
+    await idbBillPut({key:billRecordKey(visitId),userId:currentUser.id,visitId,workDate,blobs:nextBlobs,blob:nextBlobs[0]||null,size,createdAt,checked,checkedAt});
+    billStore[visitId]={visitId,workDate,size,createdAt,checked,checkedAt,count:nextBlobs.length,hasImage:nextBlobs.length>0,local:true};
     return;
   }
   if(!currentUser) throw new Error('Vui lòng đăng nhập lại');
   const safeVisit=String(visitId).replace(/[^a-zA-Z0-9_-]/g,'_');
-  const path=currentUser.id+'/'+workDate.slice(0,4)+'/'+workDate.slice(5,7)+'/'+safeVisit+'-'+Date.now()+'.jpg';
-  const {error:uploadError}=await dbClient.storage.from(BILL_BUCKET).upload(path,blob,{contentType:'image/jpeg',cacheControl:'3600',upsert:false});
-  if(uploadError) throw new Error('Kho ảnh chưa được cấu hình hoặc không có quyền tải ảnh.');
-  const row={user_id:currentUser.id,visit_id:visitId,work_date:workDate,storage_path:path,file_size:blob.size,is_checked:checked,checked_at:checkedAt,updated_at:createdAt};
+  const oldPaths=pathsForBill(existing);
+  const uploadPaths=[];
+  try{
+    for(let index=0;index<blobs.length;index++){
+      const path=currentUser.id+'/'+workDate.slice(0,4)+'/'+workDate.slice(5,7)+'/'+safeVisit+'-'+Date.now()+'-'+index+'-'+Math.random().toString(36).slice(2,7)+'.jpg';
+      const {error:uploadError}=await dbClient.storage.from(BILL_BUCKET).upload(path,blobs[index],{contentType:'image/jpeg',cacheControl:'3600',upsert:false});
+      if(uploadError) throw new Error('Kho ảnh chưa được cấu hình hoặc không có quyền tải ảnh.');
+      uploadPaths.push(path);
+    }
+    const nextPaths=replaceIndex===null?oldPaths.concat(uploadPaths):oldPaths.flatMap((path,index)=>index===replaceIndex?uploadPaths:[path]);
+    const removedPaths=replaceIndex===null?[]:oldPaths.filter((path,index)=>index===replaceIndex);
+    const nextSize=Number(existing&&existing.size||0)+blobs.reduce((sum,blob)=>sum+blob.size,0)-(replaceIndex===null?0:Math.round(Number(existing&&existing.size||0)/Math.max(1,oldPaths.length)));
+    const row={user_id:currentUser.id,visit_id:visitId,work_date:workDate,storage_path:JSON.stringify(nextPaths),file_size:Math.max(0,nextSize),is_checked:checked,checked_at:checkedAt,updated_at:createdAt};
   const {error:rowError}=await dbClient.from('visit_bills').upsert(row,{onConflict:'user_id,visit_id'});
-  if(rowError){ await dbClient.storage.from(BILL_BUCKET).remove([path]); throw new Error('Chưa tạo bảng quản lý ảnh bill.'); }
-  if(existing && existing.path && existing.path!==path) await dbClient.storage.from(BILL_BUCKET).remove([existing.path]);
-  billStore[visitId]={visitId,workDate,path,size:blob.size,createdAt,checked,checkedAt,hasImage:true,local:false};
+    if(rowError) throw new Error('Chưa tạo bảng quản lý ảnh bill.');
+    if(removedPaths.length) await dbClient.storage.from(BILL_BUCKET).remove(removedPaths);
+    billStore[visitId]={visitId,workDate,path:nextPaths[0]||null,paths:nextPaths,size:Math.max(0,nextSize),createdAt,checked,checkedAt,count:nextPaths.length,hasImage:nextPaths.length>0,local:false};
+  }catch(error){
+    if(uploadPaths.length) await dbClient.storage.from(BILL_BUCKET).remove(uploadPaths);
+    throw error;
+  }
 }
 
-async function viewBill(visitId){
+async function viewBill(visitId,index=0){
   const meta=billStore[visitId];
   if(!meta) return;
   const visit=findVisitInfo(visitId);
-  billViewerContext={visitId,key:visit?visit.key:meta.workDate};
+  billViewerContext={visitId,key:visit?visit.key:meta.workDate,index};
+  await renderCurrentBillImage();
+}
+
+async function renderCurrentBillImage(){
+  if(!billViewerContext) return;
+  const {visitId,index}=billViewerContext;
+  const meta=billStore[visitId];
+  if(!meta) return;
+  const paths=pathsForBill(meta);
+  const count=meta.local?Number(meta.count||0):paths.length;
+  billViewerContext.index=Math.max(0,Math.min(index,count-1));
   if(billObjectUrl){URL.revokeObjectURL(billObjectUrl); billObjectUrl=null;}
   try{
     let imageUrl='';
     if(TEST_MODE){
       const record=await idbBillGet(visitId);
-      if(!record || !record.blob) throw new Error('Không tìm thấy ảnh trên thiết bị');
-      billObjectUrl=URL.createObjectURL(record.blob); imageUrl=billObjectUrl;
+      const blobs=localBlobsForBill(record);
+      if(!blobs.length) throw new Error('Không tìm thấy ảnh trên thiết bị');
+      billObjectUrl=URL.createObjectURL(blobs[billViewerContext.index]); imageUrl=billObjectUrl;
     }else{
-      const {data,error}=await dbClient.storage.from(BILL_BUCKET).createSignedUrl(meta.path,3600);
+      if(!paths.length) throw new Error('Không tìm thấy đường dẫn ảnh bill');
+      const {data,error}=await dbClient.storage.from(BILL_BUCKET).createSignedUrl(paths[billViewerContext.index],3600);
       if(error || !data) throw new Error('Không thể mở ảnh bill');
       imageUrl=data.signedUrl;
     }
-    document.getElementById('bill-viewer-customer').textContent=visit&&visit.first.customerName ? visit.first.customerName : 'Khách lẻ';
+    const currentVisit=findVisitInfo(visitId);
+    document.getElementById('bill-viewer-title').textContent='Ảnh bill '+(billViewerContext.index+1)+'/'+count;
+    document.getElementById('bill-viewer-customer').textContent=currentVisit&&currentVisit.first.customerName ? currentVisit.first.customerName : 'Khách lẻ';
     document.getElementById('bill-viewer-image').src=imageUrl;
-    document.getElementById('bill-viewer-meta').textContent=fmtBytes(meta.size)+' · Ngày '+formatDateKey(meta.workDate);
+    document.getElementById('bill-viewer-meta').textContent=(billViewerContext.index+1)+'/'+count+' ảnh · Ngày '+formatDateKey(meta.workDate);
+    document.getElementById('bill-gallery-count').textContent=(billViewerContext.index+1)+' / '+count;
+    document.getElementById('bill-prev-image').disabled=billViewerContext.index<=0;
+    document.getElementById('bill-next-image').disabled=billViewerContext.index>=count-1;
     updateBillCheckButton();
     resetBillZoom();
     openModal('bill-viewer-modal');
   }catch(error){ showToast(error.message||'Không thể mở ảnh bill'); billViewerContext=null; }
+}
+
+function changeBillImage(delta){
+  if(!billViewerContext) return;
+  billViewerContext.index+=delta;
+  renderCurrentBillImage();
 }
 
 function formatDateKey(value){
@@ -2514,21 +2633,29 @@ function closeBillViewer(){
 
 function billViewerBackdrop(event){ if(event.target===event.currentTarget) closeBillViewer(); }
 
-function replaceCurrentBill(){
+function addBillsToCurrentVisit(){
   if(!billViewerContext) return;
   const context={...billViewerContext};
   closeBillViewer();
   chooseBill(context.key,context.visitId);
 }
 
+function replaceCurrentBill(){
+  if(!billViewerContext) return;
+  const context={...billViewerContext};
+  closeBillViewer();
+  chooseBill(context.key,context.visitId,context.index);
+}
+
 function askDeleteCurrentBill(){
   if(!billViewerContext) return;
   const visitId=billViewerContext.visitId;
+  const index=billViewerContext.index;
   closeBillViewer();
   const meta=billStore[visitId];
-  billDeleteContext={visitIds:[visitId],label:'ảnh bill của khách này'};
-  document.getElementById('bill-delete-message').textContent='Ảnh sẽ bị xóa vĩnh viễn. Dữ liệu dịch vụ và doanh thu vẫn được giữ.';
-  document.getElementById('bill-delete-size').textContent=fmtBytes(meta&&meta.size);
+  billDeleteContext={mode:'single',visitId,index,label:'ảnh bill này'};
+  document.getElementById('bill-delete-message').textContent='Chỉ ảnh đang xem sẽ bị xóa. Các ảnh khác và dữ liệu dịch vụ vẫn được giữ.';
+  document.getElementById('bill-delete-size').textContent=fmtBytes(Math.round(Number(meta&&meta.size||0)/Math.max(1,Number(meta&&meta.count||1))))+' (ước tính)';
   openModal('bill-delete-modal');
 }
 
@@ -2537,7 +2664,7 @@ function askDeleteBillMonth(month){
   if(!group) return;
   const [year,monthNumber]=month.split('-');
   billDeleteContext={visitIds:group.items.map(item=>item.visitId),label:'ảnh bill tháng '+monthNumber+'/'+year};
-  document.getElementById('bill-delete-message').textContent='Xóa vĩnh viễn '+group.items.length+' ảnh của tháng '+monthNumber+'/'+year+'. Dữ liệu dịch vụ và doanh thu vẫn được giữ.';
+  document.getElementById('bill-delete-message').textContent='Xóa vĩnh viễn '+group.photos+' ảnh của tháng '+monthNumber+'/'+year+'. Dữ liệu dịch vụ và doanh thu vẫn được giữ.';
   document.getElementById('bill-delete-size').textContent=fmtBytes(group.bytes);
   openModal('bill-delete-modal');
 }
@@ -2554,10 +2681,10 @@ async function deleteBillImagesOnly(visitIds){
   if(TEST_MODE){
     for(const id of ids){
       const record=await idbBillGet(id);
-      if(record){record.blob=null; record.size=0; await idbBillPut(record);}
+      if(record){record.blobs=[];record.blob=null;record.size=0;await idbBillPut(record);}
     }
   }else{
-    const paths=ids.map(id=>billStore[id].path).filter(Boolean);
+    const paths=ids.flatMap(id=>pathsForBill(billStore[id]));
     for(const group of chunksOf(paths,1000)){
       const {error}=await dbClient.storage.from(BILL_BUCKET).remove(group);
       if(error) throw new Error('Không thể xóa một số ảnh trên Supabase');
@@ -2569,9 +2696,35 @@ async function deleteBillImagesOnly(visitIds){
   }
   ids.forEach(id=>{
     billStore[id].path=null;
+    billStore[id].paths=[];
     billStore[id].size=0;
+    billStore[id].count=0;
     billStore[id].hasImage=false;
   });
+}
+
+async function deleteBillImageAt(visitId,index){
+  const meta=billStore[visitId];
+  if(!meta) return;
+  if(TEST_MODE){
+    const record=await idbBillGet(visitId);
+    const blobs=localBlobsForBill(record);
+    blobs.splice(index,1);
+    const size=blobs.reduce((sum,blob)=>sum+(blob&&blob.size||0),0);
+    await idbBillPut({...record,blobs,blob:blobs[0]||null,size});
+    Object.assign(meta,{count:blobs.length,size,hasImage:blobs.length>0});
+    return;
+  }
+  const paths=pathsForBill(meta);
+  if(index<0||index>=paths.length) return;
+  const removedPath=paths[index];
+  const nextPaths=paths.filter((_,photoIndex)=>photoIndex!==index);
+  const nextSize=nextPaths.length?Math.max(1,Math.round(Number(meta.size||0)*nextPaths.length/paths.length)):0;
+  const {error}=await dbClient.from('visit_bills').update({storage_path:nextPaths.length?JSON.stringify(nextPaths):null,file_size:nextSize,updated_at:new Date().toISOString()}).eq('visit_id',visitId).eq('user_id',currentUser.id);
+  if(error) throw new Error('Không thể cập nhật danh sách ảnh bill');
+  const {error:removeError}=await dbClient.storage.from(BILL_BUCKET).remove([removedPath]);
+  if(removeError) console.warn('Không xóa được file bill cũ trên kho',removeError);
+  Object.assign(meta,{paths:nextPaths,path:nextPaths[0]||null,size:nextSize,count:nextPaths.length,hasImage:nextPaths.length>0});
 }
 
 async function deleteBillAssets(visitIds){
@@ -2580,7 +2733,7 @@ async function deleteBillAssets(visitIds){
   if(TEST_MODE){
     await Promise.all(ids.map(id=>idbBillDelete(id)));
   }else{
-    const paths=ids.map(id=>billStore[id].path).filter(Boolean);
+    const paths=ids.flatMap(id=>pathsForBill(billStore[id]));
     for(const group of chunksOf(paths,1000)){
       const {error}=await dbClient.storage.from(BILL_BUCKET).remove(group);
       if(error) throw new Error('Không thể xóa một số ảnh trên Supabase');
@@ -2597,7 +2750,8 @@ async function confirmDeleteBills(){
   if(!billDeleteContext) return;
   const context=billDeleteContext;
   try{
-    await deleteBillImagesOnly(context.visitIds);
+    if(context.mode==='single') await deleteBillImageAt(context.visitId,context.index);
+    else await deleteBillImagesOnly(context.visitIds);
     billDeleteContext=null;
     closeModal('bill-delete-modal');
     render();
@@ -2718,8 +2872,3 @@ billZoomStage.addEventListener('touchcancel',billZoomTouchEnd,{passive:false});
 </script>
 </body>
 </html>
-
-
-
-
-
