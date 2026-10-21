@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f7f3ef">
+  <title>Chuyển dữ liệu sang Cloudflare · Bảng Công</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root{color-scheme:light;--ink:#302b28;--muted:#837a73;--line:#e9e1da;--accent:#86626c;--bg:#f7f3ef;--card:#fff}
+    *{box-sizing:border-box}body{margin:0;padding:24px;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+    main{max-width:720px;margin:6vh auto}.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:24px;box-shadow:0 8px 28px #35251b0a}
+    h1{font-size:24px;margin:0 0 4px}h2{font-size:18px;margin:24px 0 8px}.muted{color:var(--muted);font-size:14px}.notice{border-radius:12px;padding:14px;background:#f7f1eb;margin:18px 0;font-size:14px}
+    label{display:block;font-size:14px;font-weight:600;margin:14px 0 6px}input{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font:inherit}
+    button{border:0;border-radius:12px;padding:12px 18px;background:var(--accent);color:#fff;font:inherit;font-weight:600;cursor:pointer}button:disabled{opacity:.5;cursor:wait}
+    .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.progress{height:10px;border-radius:99px;background:#eee7e1;overflow:hidden;margin:16px 0}.progress i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+    #log{white-space:pre-wrap;max-height:260px;overflow:auto;background:#faf8f6;border:1px solid var(--line);padding:12px;border-radius:10px;font-size:13px}
+    .hidden{display:none!important}.good{color:#237344}.bad{color:#b33b36}.identity{font-weight:600}
+    @media(max-width:600px){body{padding:14px}main{margin:2vh auto}.card{padding:18px}h1{font-size:21px}}
+  </style>
+</head>
+<body>
+<main><section class="card">
+  <h1>Chuyển dữ liệu sang Cloudflare</h1>
+  <div class="muted">Bảng Công · dữ liệu dịch vụ sang D1, ảnh bill sang R2</div>
+  <div class="notice">Công cụ này chỉ chuyển dữ liệu của tài khoản đang đăng nhập. Dữ liệu gốc trên Supabase sẽ được giữ nguyên. Mỗi tài khoản cần chạy một lần bằng chính tài khoản đó.</div>
+  <div id="auth-panel" class="hidden">
+    <p>Đăng nhập bằng tài khoản đang dùng trong Bảng Công.</p>
+    <label for="email">Email</label><input id="email" type="email" autocomplete="username">
+    <label for="password">Mật khẩu</label><input id="password" type="password" autocomplete="current-password">
+    <div class="row"><button id="login">Đăng nhập</button></div>
+  </div>
+  <div id="app-panel" class="hidden">
+    <p>Đang đăng nhập: <span class="identity" id="identity"></span></p>
+    <p id="permission" class="muted">Đang xác nhận quyền tài khoản…</p>
+    <div class="row"><button id="migrate" disabled>Bắt đầu chuyển dữ liệu</button><button id="logout" type="button">Đăng xuất</button></div>
+    <div class="progress"><i id="bar"></i></div>
+    <div id="log" aria-live="polite">Sẵn sàng.</div>
+  </div>
+</section></main>
+<script>
+const SUPABASE_URL='https://mcmpxhqbjixnxbwuxpjv.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY='sb_publishable_tZzdGmF987bN4lr-U8yicA_QL0q9Oyh';
+const WORKER_URL='https://bang-cong-api.phanthanh0308.workers.dev';
+const supabase=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+const authPanel=document.getElementById('auth-panel'),appPanel=document.getElementById('app-panel'),logEl=document.getElementById('log');
+let session=null,canWrite=false;
+function log(message){logEl.textContent+='\n'+message;logEl.scrollTop=logEl.scrollHeight;}
+function setProgress(percent){document.getElementById('bar').style.width=Math.max(0,Math.min(100,percent))+'%';}
+async function worker(path,options={}){
+  const headers=new Headers(options.headers||{});headers.set('Authorization','Bearer '+session.access_token);
+  if(options.body&&!headers.has('Content-Type'))headers.set('Content-Type','application/json');
+  const response=await fetch(WORKER_URL+path,{...options,headers});
+  let payload={};try{payload=await response.json();}catch{}
+  if(!response.ok)throw new Error(payload.error||('Worker phản hồi HTTP '+response.status));
+  return payload;
+}
+async function showSession(current){
+  session=current;
+  if(!session){authPanel.classList.remove('hidden');appPanel.classList.add('hidden');return;}
+  authPanel.classList.add('hidden');appPanel.classList.remove('hidden');
+  document.getElementById('identity').textContent=session.user.email||session.user.id;
+  document.getElementById('permission').textContent='Đang xác nhận quyền tài khoản…';
+  document.getElementById('migrate').disabled=true;
+  try{
+    const access=await worker('/api/access');canWrite=access.can_write===true;
+    document.getElementById('permission').textContent=canWrite?'Tài khoản đã được cấp quyền. Có thể chuyển dữ liệu.':'Tài khoản chưa được cấp quyền nhập liệu. Hãy cấp quyền can_write=true rồi tải lại trang này.';
+    document.getElementById('permission').className=canWrite?'good':'bad';
+    document.getElementById('migrate').disabled=!canWrite;
+  }catch(error){document.getElementById('permission').textContent='Chưa kết nối được Worker: '+error.message;document.getElementById('permission').className='bad';}
+}
+document.getElementById('login').onclick=async()=>{
+  const {data,error}=await supabase.auth.signInWithPassword({email:document.getElementById('email').value.trim(),password:document.getElementById('password').value});
+  if(error){alert('Đăng nhập không thành công: '+error.message);return;} await showSession(data.session);
+};
+document.getElementById('logout').onclick=async()=>{await supabase.auth.signOut();await showSession(null);};
+document.getElementById('migrate').onclick=async()=>{
+  if(!session||!canWrite)return;
+  const button=document.getElementById('migrate');button.disabled=true;logEl.textContent='Đang chuyển dịch vụ…';setProgress(0);
+  try{
+    let offset=0,totalEntries=null,movedEntries=0;
+    do{
+      const result=await worker('/api/migrate/entries',{method:'POST',body:JSON.stringify({offset,limit:250})});
+      movedEntries+=result.count;offset=result.next_offset;if(result.total!==null)totalEntries=result.total;
+      setProgress(totalEntries?Math.round(movedEntries/Math.max(1,totalEntries)*45):10);
+      log(`Dịch vụ: ${movedEntries}${totalEntries===null?'':' / '+totalEntries}`);
+      if(result.done)break;
+    }while(true);
+    let billOffset=0,totalBills=null,movedBills=0,movedImages=0,movedBytes=0;
+    log('Bắt đầu chuyển bill và ảnh…');
+    do{
+      const result=await worker('/api/migrate/bills',{method:'POST',body:JSON.stringify({offset:billOffset,limit:5})});
+      movedBills+=result.count;movedImages+=result.copied_images;movedBytes+=result.copied_bytes;billOffset=result.next_offset;if(result.total!==null)totalBills=result.total;
+      const pct=totalBills?45+Math.round(movedBills/Math.max(1,totalBills)*50):50;
+      setProgress(pct);log(`Bill: ${movedBills}${totalBills===null?'':' / '+totalBills}; ảnh đã chuyển: ${movedImages}`);
+      if(result.done)break;
+    }while(true);
+    const status=await worker('/api/migrate/status');setProgress(100);
+    log(`HOÀN TẤT. D1 có ${status.entries} dịch vụ và ${status.bills} lượt bill. Đã chuyển ${movedImages} ảnh (${(movedBytes/1024/1024).toFixed(1)} MB) ở lượt chạy này.`);
+    log('Supabase vẫn giữ nguyên dữ liệu gốc. Hãy chụp lại kết quả này để đối chiếu trước khi đổi ứng dụng sang Cloudflare.');
+  }catch(error){log('TẠM DỪNG: '+error.message);log('Bạn có thể bấm chuyển lại. Các dịch vụ và ảnh được ghi theo cách có thể chạy lại an toàn.');}
+  finally{button.disabled=false;}
+};
+supabase.auth.getSession().then(({data})=>showSession(data.session));
+supabase.auth.onAuthStateChange((_event,newSession)=>{session=newSession;});
+</script>
+</body>
+</html>
