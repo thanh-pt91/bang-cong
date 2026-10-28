@@ -535,7 +535,7 @@
   nav.tabbar button[hidden]{display:none;}
   nav.tabbar button.active{color:var(--rose-deep);}
   nav.tabbar svg{width:22px; height:22px;}
-  .admin-page{max-width:760px;margin:0 auto;padding:18px 16px 92px}
+  .admin-page{width:100%;max-width:760px;margin:0 auto;padding:18px 0 92px}
   .admin-page-head{margin:4px 2px 16px}
   .admin-page-title{font-family:'Fraunces',serif;font-size:22px;font-weight:600}
   .admin-page-sub{font-size:11.5px;color:var(--ink-soft);margin-top:4px;line-height:1.5}
@@ -567,7 +567,25 @@
   .admin-day-row span:first-child{color:var(--ink-soft)}
   .admin-empty,.admin-error{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;text-align:center;color:var(--ink-soft);font-size:12px}
   .admin-error{color:var(--danger);text-align:left}
-  @media(max-width:390px){.admin-page{padding-left:12px;padding-right:12px}.admin-kpi{padding:10px 8px}.admin-kpi-value{font-size:14px}.admin-filter{grid-template-columns:1fr 1fr}.admin-filter button{grid-column:1/-1}}
+  @media(max-width:520px){
+    .admin-filter{grid-template-columns:minmax(0,1fr);gap:10px}
+    .admin-filter button{width:100%;min-height:42px}
+    .admin-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .admin-kpi:first-child{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .admin-kpi:first-child .admin-kpi-value{margin-top:0}
+    .admin-kpi{padding:12px 10px}
+    .admin-kpi-value{font-size:15px;white-space:nowrap}
+    .admin-user-total{font-size:15px}
+    .admin-user-commission{white-space:nowrap}
+    .admin-service-splits{gap:5px}
+    .admin-service-split{padding:8px 6px}
+    .admin-service-split strong{font-size:10px}
+  }
+  @media(max-width:360px){
+    .admin-kpis{grid-template-columns:minmax(0,1fr)}
+    .admin-kpi:first-child{grid-column:auto}
+    .admin-service-splits{grid-template-columns:minmax(0,1fr)}
+  }
 </style>
 </head>
 <body>
@@ -3210,7 +3228,7 @@ billZoomStage.addEventListener('touchcancel',billZoomTouchEnd,{passive:false});
 /* ================= Init ================= */
 (async function init(){
   if(TEST_MODE){
-    tab='stats';
+    tab='admin';
     await startApp({id:'local-test-admin',email:ADMIN_EMAIL});
     return;
   }
