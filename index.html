@@ -532,8 +532,42 @@
     display:flex; flex-direction:column; align-items:center; gap:3px;
     color:var(--ink-soft); font-size:10.5px; font-weight:600;
   }
+  nav.tabbar button[hidden]{display:none;}
   nav.tabbar button.active{color:var(--rose-deep);}
   nav.tabbar svg{width:22px; height:22px;}
+  .admin-page{max-width:760px;margin:0 auto;padding:18px 16px 92px}
+  .admin-page-head{margin:4px 2px 16px}
+  .admin-page-title{font-family:'Fraunces',serif;font-size:22px;font-weight:600}
+  .admin-page-sub{font-size:11.5px;color:var(--ink-soft);margin-top:4px;line-height:1.5}
+  .admin-filter{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;background:var(--card);padding:12px;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);margin-bottom:13px}
+  .admin-filter label{display:block;font-size:10px;color:var(--ink-soft);margin:0 0 5px 2px}
+  .admin-filter input{width:100%;min-width:0;border:1px solid var(--line);border-radius:10px;background:#fff;padding:9px 8px;font:500 12px 'Inter',sans-serif;color:var(--ink)}
+  .admin-filter button{border:0;border-radius:10px;background:var(--rose);color:#fff;padding:10px 12px;font:700 12px 'Inter',sans-serif;white-space:nowrap}
+  .admin-filter button:disabled{opacity:.55}
+  .admin-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-bottom:14px}
+  .admin-kpi{min-width:0;background:var(--card);border:1px solid var(--line);border-radius:15px;padding:12px 11px;box-shadow:var(--shadow)}
+  .admin-kpi-label{font-size:10px;color:var(--ink-soft);line-height:1.35}
+  .admin-kpi-value{font:600 16px 'Fraunces',serif;margin-top:5px;overflow-wrap:anywhere}
+  .admin-kpi:nth-child(3) .admin-kpi-value{color:var(--rose-deep)}
+  .admin-user-list{display:grid;gap:10px}
+  .admin-user-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:13px;box-shadow:var(--shadow)}
+  .admin-user-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+  .admin-user-name{font-size:13px;font-weight:700;overflow-wrap:anywhere}
+  .admin-user-id{font-size:9px;color:var(--ink-soft);margin-top:3px;overflow-wrap:anywhere}
+  .admin-user-total{text-align:right;font:600 16px 'Fraunces',serif;white-space:nowrap}
+  .admin-user-commission{font-size:10.5px;color:var(--rose-deep);margin-top:2px}
+  .admin-service-splits{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:12px}
+  .admin-service-split{background:#F8F4F1;border-radius:10px;padding:8px 7px;min-width:0}
+  .admin-service-split span{display:block;font-size:9px;color:var(--ink-soft)}
+  .admin-service-split strong{display:block;font-size:10.5px;margin-top:3px;overflow-wrap:anywhere}
+  .admin-user-details{border-top:1px solid var(--line);margin-top:11px;padding-top:9px}
+  .admin-user-details summary{font-size:11px;font-weight:600;color:var(--rose-deep);cursor:pointer}
+  .admin-day-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;padding:8px 0;border-bottom:1px solid #F1EAE6;font-size:10px}
+  .admin-day-row:last-child{border-bottom:0}
+  .admin-day-row span:first-child{color:var(--ink-soft)}
+  .admin-empty,.admin-error{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;text-align:center;color:var(--ink-soft);font-size:12px}
+  .admin-error{color:var(--danger);text-align:left}
+  @media(max-width:390px){.admin-page{padding-left:12px;padding-right:12px}.admin-kpi{padding:10px 8px}.admin-kpi-value{font-size:14px}.admin-filter{grid-template-columns:1fr 1fr}.admin-filter button{grid-column:1/-1}}
 </style>
 </head>
 <body>
@@ -684,6 +718,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V10M12 19V5M20 19v-7"/></svg>
       Thống kê
     </button>
+    <button id="tab-admin" hidden onclick="setTab('admin')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5h16v14zM8 9h8M8 13h3M15 13h1M8 16h8"/></svg>
+      Quản trị
+    </button>
   </div>
 </nav>
 
@@ -747,6 +785,14 @@ let pendingServices = [];
 let lastDeleted = null;
 let toastTimer = null;
 let currentUser = null;
+const ADMIN_EMAIL = 'phanthanh0308@gmail.com';
+let isAdminUser = false;
+let adminRows = [];
+let adminLoaded = false;
+let adminLoading = false;
+let adminError = '';
+let adminFrom = '';
+let adminTo = '';
 let appStarted = false;
 let authRecoveryActive = false;
 let editContext = null;
@@ -1050,6 +1096,8 @@ async function syncAll(){
 
 async function startApp(user){
   currentUser=user;
+  isAdminUser=String(user?.email||'').trim().toLowerCase()===ADMIN_EMAIL;
+  document.getElementById('tab-admin').hidden=!isAdminUser;
   document.getElementById('account-email').textContent=user.email||'';
   document.body.classList.add('authenticated');
   if(!TEST_MODE){
@@ -1231,6 +1279,8 @@ async function logout(){
   if(TEST_MODE) return;
   await dbClient.auth.signOut();
   currentUser=null; store={}; appStarted=false;
+  isAdminUser=false;adminRows=[];adminLoaded=false;adminError='';adminLoading=false;adminFrom='';adminTo='';tab='entry';
+  document.getElementById('tab-admin').hidden=true;
   document.body.classList.remove('authenticated','access-pending');
   document.getElementById('main').innerHTML='';
 }
@@ -1446,6 +1496,7 @@ document.addEventListener('touchend',event=>{
 },{passive:true});
 
 function setTab(t){
+  if(t==='admin'&&!isAdminUser){showToast('Tài khoản không có quyền quản trị.');return;}
   if(t===tab && t==='stats'){statsDetailType=null;billManagerOpen=false;}
   if(t===tab && t==='search') customerHistoryContext=null;
   pageBackStack=[];
@@ -1455,14 +1506,77 @@ function setTab(t){
   document.getElementById('tab-entry').classList.toggle('active', t==='entry');
   document.getElementById('tab-search').classList.toggle('active', t==='search');
   document.getElementById('tab-stats').classList.toggle('active', t==='stats');
+  document.getElementById('tab-admin').classList.toggle('active', t==='admin');
   render();
+  if(t==='admin'&&!adminLoaded&&!adminLoading) loadAdminRevenue();
   window.scrollTo(0,0);
 }
 
 function render(){
   const main = document.getElementById('main');
-  main.innerHTML = tab==='entry' ? renderEntryTab() : (tab==='search' ? renderSearchTab() : (billManagerOpen ? renderBillManager() : (statsDetailType ? renderStatsDetail() : renderStatsTab())));
+  main.innerHTML = tab==='admin' ? renderAdminTab() : (tab==='entry' ? renderEntryTab() : (tab==='search' ? renderSearchTab() : (billManagerOpen ? renderBillManager() : (statsDetailType ? renderStatsDetail() : renderStatsTab()))));
   attachEntryTabEvents();
+}
+
+function defaultAdminRange(){
+  const range=monthRange(new Date());
+  return {from:keyOf(range.start),to:keyOf(range.end)};
+}
+
+function adminDemoRows(){
+  const today=new Date(),date=(offset)=>keyOf(addDays(today,-offset));
+  return [
+    {user_id:'demo-user-lan',user_name:'nhanvien.lan@example.com',work_date:date(0),revenue_type:'tiem',service_count:3,revenue:480000,commission:28800},
+    {user_id:'demo-user-lan',user_name:'nhanvien.lan@example.com',work_date:date(0),revenue_type:'may',service_count:1,revenue:120000,commission:9600},
+    {user_id:'demo-user-lan',user_name:'nhanvien.lan@example.com',work_date:date(1),revenue_type:'bonus',service_count:1,revenue:50000,commission:0},
+    {user_id:'demo-user-minh',user_name:'nhanvien.minh@example.com',work_date:date(0),revenue_type:'tiem',service_count:2,revenue:320000,commission:19200},
+    {user_id:'demo-user-minh',user_name:'nhanvien.minh@example.com',work_date:date(2),revenue_type:'may',service_count:2,revenue:260000,commission:20800}
+  ];
+}
+
+function adminUsersFromRows(rows){
+  const users=new Map();
+  rows.forEach(row=>{
+    const id=String(row.user_id||'');
+    if(!users.has(id)) users.set(id,{id,name:row.user_name||'',revenue:0,commission:0,count:0,tiem:0,may:0,bonus:0,days:new Map()});
+    const user=users.get(id),bucket=['tiem','may','bonus'].includes(row.revenue_type)?row.revenue_type:'tiem';
+    const revenue=Number(row.revenue)||0,commission=Number(row.commission)||0,count=Number(row.service_count)||0;
+    user.name=user.name||row.user_name||'';user.revenue+=revenue;user.commission+=commission;user.count+=count;user[bucket]+=revenue;
+    if(!user.days.has(row.work_date)) user.days.set(row.work_date,{revenue:0,commission:0,count:0});
+    const day=user.days.get(row.work_date);day.revenue+=revenue;day.commission+=commission;day.count+=count;
+  });
+  return [...users.values()].sort((a,b)=>b.revenue-a.revenue);
+}
+
+function renderAdminTab(){
+  const defaults=defaultAdminRange();
+  if(!adminFrom) adminFrom=defaults.from;
+  if(!adminTo) adminTo=defaults.to;
+  const visibleRows=TEST_MODE?adminDemoRows().filter(row=>row.work_date>=adminFrom&&row.work_date<=adminTo):adminRows;
+  const users=adminUsersFromRows(visibleRows);
+  const totalRevenue=users.reduce((sum,user)=>sum+user.revenue,0);
+  const totalCommission=users.reduce((sum,user)=>sum+user.commission,0);
+  const userCards=users.map(user=>{
+    const details=[...user.days.entries()].sort((a,b)=>b[0].localeCompare(a[0])).map(([date,day])=>`<div class="admin-day-row"><span>${fmtDate(new Date(date+'T12:00:00'))} · ${day.count} dịch vụ</span><strong>${fmtVND(day.revenue)}</strong><strong>${fmtVND(day.commission)}</strong></div>`).join('');
+    const displayName=user.name||('Tài khoản '+user.id.slice(0,8));
+    return `<article class="admin-user-card"><div class="admin-user-head"><div><div class="admin-user-name">${escapeHtml(displayName)}</div><div class="admin-user-id">${escapeHtml(user.id)}</div></div><div><div class="admin-user-total">${fmtVND(user.revenue)}</div><div class="admin-user-commission">Hoa hồng ${fmtVND(user.commission)}</div></div></div><div class="admin-service-splits"><div class="admin-service-split"><span>Tiêm thường</span><strong>${fmtVND(user.tiem)}</strong></div><div class="admin-service-split"><span>Bắn máy</span><strong>${fmtVND(user.may)}</strong></div><div class="admin-service-split"><span>Bonus doanh thu</span><strong>${fmtVND(user.bonus)}</strong></div></div><details class="admin-user-details"><summary>Chi tiết theo ngày (${user.days.size} ngày)</summary>${details}</details></article>`;
+  }).join('');
+  return `<section class="admin-page"><header class="admin-page-head"><div class="admin-page-title">Quản trị doanh thu</div><div class="admin-page-sub">Theo dõi doanh thu và hoa hồng của từng tài khoản trong khoảng ngày đã chọn.</div></header><div class="admin-filter"><div><label for="admin-from">Từ ngày</label><input id="admin-from" type="date" value="${escapeHtml(adminFrom)}" onchange="adminFrom=this.value"></div><div><label for="admin-to">Đến ngày</label><input id="admin-to" type="date" value="${escapeHtml(adminTo)}" onchange="adminTo=this.value"></div><button type="button" onclick="loadAdminRevenue()" ${adminLoading?'disabled':''}>${adminLoading?'Đang tải…':'Xem doanh thu'}</button></div>${TEST_MODE?'<div class="admin-page-sub" style="margin:0 2px 12px">Bản demo · số liệu minh họa</div>':''}<div class="admin-kpis"><div class="admin-kpi"><div class="admin-kpi-label">Tài khoản có doanh thu</div><div class="admin-kpi-value">${users.length}</div></div><div class="admin-kpi"><div class="admin-kpi-label">Tổng doanh thu</div><div class="admin-kpi-value">${fmtVND(totalRevenue)}</div></div><div class="admin-kpi"><div class="admin-kpi-label">Tổng hoa hồng</div><div class="admin-kpi-value">${fmtVND(totalCommission)}</div></div></div>${adminError?`<div class="admin-error">${escapeHtml(adminError)}</div>`:users.length?`<div class="admin-user-list">${userCards}</div>`:`<div class="admin-empty">${adminLoading?'Đang tải số liệu…':'Không có doanh thu trong khoảng ngày này.'}</div>`}</section>`;
+}
+
+async function loadAdminRevenue(){
+  if(!isAdminUser||adminLoading) return;
+  const from=document.getElementById('admin-from')?.value||adminFrom||defaultAdminRange().from;
+  const to=document.getElementById('admin-to')?.value||adminTo||defaultAdminRange().to;
+  if(from>to){adminError='Ngày bắt đầu cần nhỏ hơn hoặc bằng ngày kết thúc.';render();return;}
+  adminFrom=from;adminTo=to;adminError='';adminLoading=true;render();
+  if(TEST_MODE){adminRows=adminDemoRows().filter(row=>row.work_date>=from&&row.work_date<=to);adminLoaded=true;adminLoading=false;render();return;}
+  try{
+    const params=new URLSearchParams({from,to});
+    const result=await workerJson('/api/admin/revenue?'+params.toString());
+    adminRows=Array.isArray(result.data)?result.data:[];adminLoaded=true;
+  }catch(error){adminError=error.message||'Không tải được doanh thu tài khoản.';}
+  finally{adminLoading=false;render();}
 }
 
 function renderDateBar(){
@@ -3096,7 +3210,8 @@ billZoomStage.addEventListener('touchcancel',billZoomTouchEnd,{passive:false});
 /* ================= Init ================= */
 (async function init(){
   if(TEST_MODE){
-    await startApp({id:'local-test-user',email:'test@local'});
+    tab='stats';
+    await startApp({id:'local-test-admin',email:ADMIN_EMAIL});
     return;
   }
   const {data,error}=await dbClient.auth.getSession();
