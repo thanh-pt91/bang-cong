@@ -141,6 +141,10 @@
     font-size:13px; font-weight:600; color:var(--ink-soft); border-radius:9px;
   }
   .segmented button.active{background:var(--card); color:var(--rose-deep); box-shadow:var(--shadow);}
+  .stats-export-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;width:100%;margin:-4px 0 14px;box-sizing:border-box;}
+  .stats-export-actions button{width:100%;min-width:0;min-height:40px;padding:0 10px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--rose-deep);font:700 12px 'Inter',sans-serif;box-shadow:var(--shadow);}
+  .stats-export-actions button:disabled{opacity:.5;}
+  @media(max-width:520px){.stats-export-actions{gap:8px}.stats-export-actions button{padding:0 8px;font-size:11px}}
 
   /* ---- Type toggle ---- */
   .typetoggle{display:flex; gap:10px; margin-bottom:14px;}
@@ -587,7 +591,7 @@
     <div class="modal-sub">Cập nhật số tiền và thông tin khách hàng.</div>
     <div class="modal-field"><label>Loại dịch vụ</label><div class="modal-type-toggle"><button id="edit-type-tiem" type="button" onclick="selectEditType('tiem')">Tiêm · 6%</button><button id="edit-type-may" type="button" onclick="selectEditType('may')">Bắn máy · 8%</button></div></div>
     <div class="modal-field"><label for="edit-amount">Số tiền dịch vụ</label><input id="edit-amount" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off"></div>
-    <button id="edit-bonus-toggle" class="bonus-toggle" type="button" onclick="toggleEditBonus()"><span class="star">★</span><span>Bonus · áp dụng hoa hồng 2%</span></button>
+    <button id="edit-bonus-toggle" class="bonus-toggle" type="button" onclick="toggleEditBonus()"><span class="star">★</span><span>Đánh dấu là bonus doanh thu</span></button>
     <div class="modal-field"><label for="edit-name">Tên khách hàng</label><input id="edit-name" type="text" maxlength="80" autocomplete="off"></div>
     <div class="modal-field"><label for="edit-code">MSKH</label><input id="edit-code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="40" autocomplete="off"></div>
     <div class="modal-error" id="edit-error"></div>
@@ -601,7 +605,7 @@
     <div class="modal-customer-summary" id="add-service-customer"></div>
     <div class="modal-field"><label>Loại dịch vụ</label><div class="modal-type-toggle"><button id="add-type-tiem" type="button" onclick="selectAddServiceType('tiem')">Tiêm · 6%</button><button id="add-type-may" type="button" onclick="selectAddServiceType('may')">Bắn máy · 8%</button></div></div>
     <div class="modal-field"><label for="add-service-amount">Số tiền dịch vụ</label><input id="add-service-amount" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Nhập số tiền"></div>
-    <button id="add-bonus-toggle" class="bonus-toggle" type="button" onclick="toggleAddServiceBonus()"><span class="star">★</span><span>Bonus · áp dụng hoa hồng 2%</span></button>
+    <button id="add-bonus-toggle" class="bonus-toggle" type="button" onclick="toggleAddServiceBonus()"><span class="star">★</span><span>Đánh dấu là bonus doanh thu</span></button>
     <div class="modal-error" id="add-service-error"></div>
     <div class="modal-actions"><button class="modal-cancel" onclick="closeModal('add-service-modal')">Hủy</button><button class="modal-primary" onclick="saveAddedService()">Thêm dịch vụ</button></div>
   </div>
@@ -687,8 +691,8 @@
 <script>
 /* ================= Config ================= */
 const RATES = { tiem: 0.06, may: 0.08 };
-const BONUS_RATE = 0.02;
-function entryRate(entry){ return entry && entry.type==='tiem' && entry.bonus ? BONUS_RATE : RATES[entry.type]||0; }
+const LEGACY_BONUS_RATE = 0.02;
+function entryRate(entry){ return entry && entry.bonus ? 0 : RATES[entry.type]||0; }
 const LABELS = { tiem: 'Dịch vụ tiêm', may: 'Dịch vụ bắn máy' };
 const STORE_KEY = 'entries-store';
 const TEST_MODE = new URLSearchParams(window.location.search).get('test') === '1';
@@ -894,7 +898,7 @@ function rowToEntry(row){
     id:row.id, visitId:visitKeyOf({id:row.id}), type:row.service_type, amount:Number(row.amount),
     customerName:row.customer_name||'', customerCode:row.customer_code||'',
     ts:new Date(row.created_at).getTime(), updatedAt:new Date(row.updated_at||row.created_at).getTime(),
-    bonus:row.service_type==='tiem' && Math.abs(Number(row.commission_rate)-BONUS_RATE)<0.000001
+    bonus:Math.abs(Number(row.commission_rate))<0.000001 || (row.service_type==='tiem' && Math.abs(Number(row.commission_rate)-LEGACY_BONUS_RATE)<0.000001)
   };
 }
 
@@ -1347,9 +1351,9 @@ function entriesForDate(d){
 }
 function aggregate(dates){
   const agg = {
-    revenue:0, commission:0, bonusCommission:0, bonusCount:0, count:0,
+    revenue:0, commission:0, bonusCommission:0, bonusRevenue:0, bonusCount:0, count:0,
     tiem:{revenue:0, commission:0, count:0, regularRevenue:0, regularCommission:0, regularCount:0, bonusRevenue:0, bonusCommission:0, bonusCount:0},
-    may:{revenue:0, commission:0, count:0}
+    may:{revenue:0, commission:0, count:0, regularRevenue:0, regularCommission:0, regularCount:0, bonusRevenue:0, bonusCommission:0, bonusCount:0}
   };
   dates.forEach(d=>{
     (store[keyOf(d)]||[]).forEach(e=>{
@@ -1360,11 +1364,13 @@ function aggregate(dates){
       agg[e.type].revenue += e.amount;
       agg[e.type].commission += c;
       agg[e.type].count += 1;
-      if(e.type==='tiem' && e.bonus){
-        agg.bonusCommission+=c; agg.bonusCount+=1;
-        agg.tiem.bonusRevenue+=e.amount; agg.tiem.bonusCommission+=c; agg.tiem.bonusCount+=1;
-      }else if(e.type==='tiem'){
-        agg.tiem.regularRevenue+=e.amount; agg.tiem.regularCommission+=c; agg.tiem.regularCount+=1;
+      if(e.bonus){
+        agg.bonusCommission+=c; agg.bonusCount+=1; agg.bonusRevenue+=e.amount;
+        agg[e.type].bonusRevenue+=e.amount; agg[e.type].bonusCommission+=c; agg[e.type].bonusCount+=1;
+      }else{
+        agg[e.type].regularRevenue=(agg[e.type].regularRevenue||0)+e.amount;
+        agg[e.type].regularCommission=(agg[e.type].regularCommission||0)+c;
+        agg[e.type].regularCount=(agg[e.type].regularCount||0)+1;
       }
     });
   });
@@ -1664,7 +1670,7 @@ function renderCustomerHistoryTab(){
       const items=byDate[dateKey],dayTotal=items.reduce((sum,entry)=>sum+(Number(entry.amount)||0),0);
       const focused=dateKey===focusDate;
       return `<div class="customer-history-date">${WD[date.getDay()]} · ${fmtDate(date)}${focused?' · ĐÃ CHỌN':''} · ${items.length} dịch vụ · ${fmtVND(dayTotal)}</div>
-        ${items.map(entry=>`<div class="customer-search-result"><span class="dot ${entry.type}"></span><div class="customer-search-info"><div class="customer-search-name">${LABELS[entry.type]}${entry.bonus?' · ★ Bonus':''}</div><div class="customer-search-detail">Hoa hồng ${Math.round(entryRate(entry)*100)}% · ${fmtVND(entry.amount*entryRate(entry))}</div></div><div class="customer-search-money"><strong>${fmtVND(entry.amount)}</strong></div></div>`).join('')}`;
+        ${items.map(entry=>`<div class="customer-search-result"><span class="dot ${entry.type}"></span><div class="customer-search-info"><div class="customer-search-name">${LABELS[entry.type]}${entry.bonus?' · ★ Bonus doanh thu':''}</div><div class="customer-search-detail">${entry.bonus?'Doanh thu bonus':'Hoa hồng '+Math.round(entryRate(entry)*100)+'% · '+fmtVND(entry.amount*entryRate(entry))}</div></div><div class="customer-search-money"><strong>${fmtVND(entry.amount)}</strong></div></div>`).join('')}`;
     }).join(''):'<div class="customer-search-empty">Chưa có ngày làm dịch vụ cho khách này.</div>'}
   </div>`;
 }
@@ -1684,11 +1690,11 @@ function renderEntryTab(){
     <div class="typetoggle">
       <button class="${pendingType==='tiem'?'sel-tiem':''}" onclick="selectType('tiem')">
         <div><span class="dot tiem"></span><span class="name">Tiêm</span></div>
-        <div class="rate">Hoa hồng ${pendingBonus?'2% bonus':'6%'}</div>
+        <div class="rate">${pendingBonus?'Bonus · doanh thu':'Hoa hồng 6%'}</div>
       </button>
       <button class="${pendingType==='may'?'sel-may':''}" onclick="selectType('may')">
         <div><span class="dot may"></span><span class="name">Bắn máy</span></div>
-        <div class="rate">Hoa hồng 8%</div>
+        <div class="rate">${pendingBonus?'Bonus · doanh thu':'Hoa hồng 8%'}</div>
       </button>
     </div>
 
@@ -1709,8 +1715,8 @@ function renderEntryTab(){
 
     <div class="entrycard">
       <div class="amount-display">
-        <button class="bonus-toggle ${pendingBonus?'active':''}" type="button" onclick="togglePendingBonus()" ${pendingType!=='tiem'?'disabled':''}>
-          <span class="star">${pendingBonus?'★':'☆'}</span><span>Bonus · 2%</span>
+        <button class="bonus-toggle ${pendingBonus?'active':''}" type="button" onclick="togglePendingBonus()">
+          <span class="star">${pendingBonus?'★':'☆'}</span><span>Bonus doanh thu</span>
         </button>
         <div class="val ${pendingDigits?'':'placeholder'} tnum">${pendingDigits ? fmtVND(preview) : '0 đ'}</div>
       </div>
@@ -1732,7 +1738,7 @@ function renderEntryTab(){
         ${pendingServices.map(item=>`
           <div class="visit-item">
             <span class="dot ${item.type}"></span>
-            <div class="visit-item-info"><div class="visit-item-name">${LABELS[item.type]}${item.bonus?' · ★ Bonus':''}</div><div class="visit-item-commission">Hoa hồng ${Math.round(entryRate(item)*100)}% · ${fmtVND(item.amount*entryRate(item))}</div></div>
+            <div class="visit-item-info"><div class="visit-item-name">${LABELS[item.type]}${item.bonus?' · ★ Bonus':''}</div><div class="visit-item-commission">${item.bonus?'Doanh thu bonus':'Hoa hồng '+Math.round(entryRate(item)*100)+'% · '+fmtVND(item.amount*entryRate(item))}</div></div>
             <div class="visit-item-amount">${fmtVND(item.amount)}</div>
             <button class="visit-item-remove" aria-label="Bỏ dịch vụ" onclick="removePendingService('${item.draftId}')">×</button>
           </div>`).join('')}
@@ -1763,7 +1769,7 @@ function renderEntryTab(){
             <div class="visit-entry-name">${first.customerName ? escapeHtml(first.customerName) : 'Khách lẻ'}</div>
             <div class="visit-entry-code">${first.customerCode ? 'MSKH: '+escapeHtml(first.customerCode)+' · ' : ''}${visit.entries.length} dịch vụ</div>
           </div>
-          <div class="visit-entry-total"><div class="amount">${fmtVND(visitRevenue)}</div><div class="commission">+ ${fmtVND(visitCommission)} hoa hồng</div></div>
+          <div class="visit-entry-total"><div class="amount">${fmtVND(visitRevenue)}</div>${visitCommission>0?`<div class="commission">+ ${fmtVND(visitCommission)} hoa hồng</div>`:''}</div>
           <button class="visit-entry-delete" aria-label="Xóa lượt khách" onclick="deleteVisit('${keyOf(entryDate)}','${visit.visitId}')">×</button>
         </div>
         <div class="visit-entry-actions">
@@ -1774,9 +1780,9 @@ function renderEntryTab(){
         </div>
         ${visit.entries.map(e=>`<div class="visit-service-row">
           <span class="dot ${e.type}"></span>
-          <div class="visit-service-info"><div class="visit-service-name">${LABELS[e.type]}${e.bonus?' · ★ Bonus':''}</div><div class="visit-service-com">Hoa hồng ${Math.round(entryRate(e)*100)}% · ${fmtVND(e.amount*entryRate(e))}</div></div>
+          <div class="visit-service-info"><div class="visit-service-name">${LABELS[e.type]}${e.bonus?' · ★ Bonus':''}</div><div class="visit-service-com">${e.bonus?'Doanh thu bonus':'Hoa hồng '+Math.round(entryRate(e)*100)+'% · '+fmtVND(e.amount*entryRate(e))}</div></div>
           <div class="visit-service-amount">${fmtVND(e.amount)}</div>
-          <button class="bonus-entry-toggle ${e.bonus?'active':''}" aria-label="${e.bonus?'Tắt':'Bật'} bonus" title="${e.bonus?'Tắt':'Bật'} bonus 2%" onclick="toggleEntryBonus('${keyOf(entryDate)}','${e.id}')" ${e.type!=='tiem'?'disabled':''}>${e.bonus?'★':'☆'}</button>
+          <button class="bonus-entry-toggle ${e.bonus?'active':''}" aria-label="${e.bonus?'Tắt':'Bật'} bonus doanh thu" title="${e.bonus?'Tắt':'Bật'} bonus doanh thu" onclick="toggleEntryBonus('${keyOf(entryDate)}','${e.id}')">${e.bonus?'★':'☆'}</button>
           <button class="edit" aria-label="Sửa dịch vụ" onclick="editEntry('${keyOf(entryDate)}','${e.id}')">✎</button>
           <button class="visit-entry-delete" aria-label="Xóa dịch vụ" title="Xóa dịch vụ" onclick="deleteEntry('${keyOf(entryDate)}','${e.id}')">×</button>
         </div>`).join('')}
@@ -1823,6 +1829,7 @@ function renderStatsTab(){
   const billChecked=billItems.filter(item=>item.checked).length;
 
   return `
+    <div id="stats-export-content">
     <div class="segmented">
       <button class="${statsMode==='day'?'active':''}" onclick="setStatsMode('day')">Ngày</button>
       <button class="${statsMode==='week'?'active':''}" onclick="setStatsMode('week')">Tuần</button>
@@ -1866,33 +1873,37 @@ function renderStatsTab(){
 
     <div class="breakdown">
       <div class="bd-row clickable" role="button" tabindex="0" onclick="openStatsDetail('tiem_regular')">
-        <div class="hd"><span class="dot tiem" style="width:8px;height:8px;border-radius:50%;display:inline-block;background:var(--tiem);margin-right:6px;"></span><span class="name">Tiêm thường</span><span class="rate">6% · ${agg.tiem.regularCount} đơn</span></div>
+        <div class="hd"><span class="dot tiem" style="width:8px;height:8px;border-radius:50%;display:inline-block;background:var(--tiem);margin-right:6px;"></span><span class="name">Dịch vụ tiêm</span><span class="rate">6% · ${agg.tiem.regularCount} đơn</span></div>
         <div class="stats">
           <div class="c"><div class="k">Doanh thu</div><div class="v tnum">${fmtVND(agg.tiem.regularRevenue)}</div></div>
           <div class="c"><div class="k">Hoa hồng</div><div class="v tnum">${fmtVND(agg.tiem.regularCommission)}</div></div>
         </div>
         <span class="chevron">›</span>
       </div>
-      <div class="bd-row bonus-stat clickable" role="button" tabindex="0" onclick="openStatsDetail('tiem_bonus')">
-        <div class="hd"><span class="name">★ Tiêm bonus</span><span class="rate">2% · ${agg.tiem.bonusCount} đơn</span></div>
+      <div class="bd-row clickable" role="button" tabindex="0" onclick="openStatsDetail('may_regular')">
+        <div class="hd"><span class="dot may" style="width:8px;height:8px;border-radius:50%;display:inline-block;background:var(--may);margin-right:6px;"></span><span class="name">Dịch vụ bắn máy</span><span class="rate">8% · ${agg.may.regularCount} đơn</span></div>
         <div class="stats">
-          <div class="c"><div class="k">Doanh thu</div><div class="v tnum">${fmtVND(agg.tiem.bonusRevenue)}</div></div>
-          <div class="c"><div class="k">Hoa hồng bonus</div><div class="v tnum">${fmtVND(agg.tiem.bonusCommission)}</div></div>
+          <div class="c"><div class="k">Doanh thu</div><div class="v tnum">${fmtVND(agg.may.regularRevenue)}</div></div>
+          <div class="c"><div class="k">Hoa hồng</div><div class="v tnum">${fmtVND(agg.may.regularCommission)}</div></div>
         </div>
         <span class="chevron">›</span>
       </div>
-      <div class="bd-row clickable" role="button" tabindex="0" onclick="openStatsDetail('may')">
-        <div class="hd"><span class="dot may" style="width:8px;height:8px;border-radius:50%;display:inline-block;background:var(--may);margin-right:6px;"></span><span class="name">Dịch vụ bắn máy</span><span class="rate">8%</span></div>
+      <div class="bd-row bonus-stat clickable" role="button" tabindex="0" onclick="openStatsDetail('bonus')">
+        <div class="hd"><span class="name">★ Bonus doanh thu</span><span class="rate">${agg.bonusCount} đơn</span></div>
         <div class="stats">
-          <div class="c"><div class="k">Doanh thu</div><div class="v tnum">${fmtVND(agg.may.revenue)}</div></div>
-          <div class="c"><div class="k">Hoa hồng</div><div class="v tnum">${fmtVND(agg.may.commission)}</div></div>
+          <div class="c"><div class="k">Doanh thu</div><div class="v tnum">${fmtVND(agg.bonusRevenue)}</div></div>
         </div>
         <span class="chevron">›</span>
       </div>
     </div>
+    <div class="stats-export-actions">
+      <button type="button" onclick="exportStatsImage()">▧ Xuất ảnh thống kê</button>
+      <button type="button" onclick="exportStatsExcel()">▤ Xuất Excel doanh thu</button>
+    </div>
     <button class="bill-manager-link" onclick="openBillManager()">
       <span class="icon">▧</span><span class="info"><span class="name">Quản lý ảnh bill</span><span class="sub">${billChecked}/${billItems.length} lượt đã check · ${billPhotoCount} ảnh · ${fmtBytes(billBytes)} · Xóa theo tháng</span></span><span class="arrow">›</span>
     </button>
+    </div>
   `;
 }
 
@@ -1960,13 +1971,13 @@ function closeStatsDetail(){ goBackAppPage(()=>{statsDetailType=null;render();wi
 function renderStatsDetail(){
   const context=statsPeriodContext();
   const detailMode=statsDetailType;
-  const type=detailMode.startsWith('tiem_')?'tiem':detailMode;
-  const bonusFilter=detailMode==='tiem_bonus'?true:detailMode==='tiem_regular'?false:null;
-  const title=type==='tiem'?(bonusFilter===true?'Tiêm bonus':bonusFilter===false?'Tiêm thường':'Dịch vụ tiêm'):LABELS[type];
+  const bonusFilter=detailMode==='bonus'?true:(detailMode==='tiem_regular'||detailMode==='may_regular'?false:null);
+  const type=detailMode==='bonus'?null:(detailMode.startsWith('tiem_')?'tiem':detailMode==='may_regular'?'may':detailMode);
+  const title=detailMode==='bonus'?'Bonus doanh thu':type==='tiem'?(bonusFilter===false?'Tiêm thường':'Dịch vụ tiêm'):type==='may'?'Dịch vụ bắn máy':LABELS[type];
   const items=[];
   context.dates.forEach(date=>{
     const dateKey=keyOf(date);
-    (store[dateKey]||[]).filter(entry=>entry.type===type&&(bonusFilter===null||!!entry.bonus===bonusFilter)).forEach(entry=>items.push({...entry,dateKey,date:new Date(date)}));
+    (store[dateKey]||[]).filter(entry=>(!type||entry.type===type)&&(bonusFilter===null||!!entry.bonus===bonusFilter)).forEach(entry=>items.push({...entry,dateKey,date:new Date(date)}));
   });
   items.sort((a,b)=>b.dateKey.localeCompare(a.dateKey)||(b.ts||0)-(a.ts||0));
   const revenue=items.reduce((sum,item)=>sum+item.amount,0);
@@ -1982,7 +1993,7 @@ function renderStatsDetail(){
     </div>
     <div class="summary">
       <div class="box"><div class="k">Tổng doanh thu</div><div class="v tnum">${fmtVND(revenue)}</div></div>
-      <div class="box hi"><div class="k">Tổng hoa hồng</div><div class="v tnum">${fmtVND(commission)}</div></div>
+      ${bonusFilter===true?'':`<div class="box hi"><div class="k">Tổng hoa hồng</div><div class="v tnum">${fmtVND(commission)}</div></div>`}
     </div>
     ${items.length===0 ? `<div class="empty"><div class="ic">🗒️</div>Không có dịch vụ nào trong khoảng thời gian này.</div>` : dateKeys.map(dateKey=>{
       const [year,month,day]=dateKey.split('-').map(Number);
@@ -1990,8 +2001,8 @@ function renderStatsDetail(){
       return `<div class="detail-day-title">${WD[date.getDay()]} · ${fmtDate(date)} (${grouped[dateKey].length})</div>
       ${grouped[dateKey].map(entry=>`<div class="detail-entry">
         <span class="dot ${type}"></span>
-        <div class="detail-entry-info"><div class="detail-entry-name">${entry.customerName ? escapeHtml(entry.customerName) : 'Khách lẻ'} ${entry.bonus?'<span class="bonus-pill">★ Bonus</span>':''}</div><div class="detail-entry-code">${entry.customerCode ? 'MSKH: '+escapeHtml(entry.customerCode) : LABELS[type]}</div></div>
-        <div class="detail-entry-money"><div class="detail-entry-amount">${fmtVND(entry.amount)}</div><div class="detail-entry-com">+ ${fmtVND(entry.amount*entryRate(entry))}</div></div>
+        <div class="detail-entry-info"><div class="detail-entry-name">${entry.customerName ? escapeHtml(entry.customerName) : 'Khách lẻ'} ${entry.bonus?'<span class="bonus-pill">★ Bonus doanh thu</span>':''}</div><div class="detail-entry-code">${entry.customerCode ? 'MSKH: '+escapeHtml(entry.customerCode) : LABELS[entry.type]}</div></div>
+        <div class="detail-entry-money"><div class="detail-entry-amount">${fmtVND(entry.amount)}</div>${entry.bonus?'':`<div class="detail-entry-com">+ ${fmtVND(entry.amount*entryRate(entry))}</div>`}</div>
       </div>`).join('')}`;
     }).join('')}
     </div>
@@ -2019,7 +2030,231 @@ function jumpStatsDate(value){
   render();
 }
 
-function selectType(t){ pendingType=t; if(t!=='tiem') pendingBonus=false; render(); }
+function statsExportRows(){
+  const context={...statsPeriodContext()};
+  if(statsMode==='day') context.label=fmtDate(statsAnchor);
+  const rows=[];
+  context.dates.forEach(date=>{
+    const dateKey=keyOf(date);
+    (store[dateKey]||[]).forEach(entry=>rows.push({...entry,dateKey}));
+  });
+  rows.sort((a,b)=>a.dateKey.localeCompare(b.dateKey)||(a.ts||0)-(b.ts||0));
+  return {context,rows};
+}
+
+function statsExportFilename(extension){
+  const {context}=statsExportRows();
+  const clean=context.label.replace(/[^\p{L}\p{N}-]+/gu,'-').replace(/^-|-$/g,'').toLowerCase()||'thong-ke';
+  return 'bang-cong-'+clean+'.'+extension;
+}
+
+function downloadBlob(blob,filename){
+  const link=document.createElement('a');
+  const url=URL.createObjectURL(blob);
+  link.href=url; link.download=filename; link.style.display='none';
+  document.body.appendChild(link); link.click(); link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+
+async function statsImageBlob(){
+  const period=statsPeriodContext(),agg=aggregate(period.dates);
+  const width=900,pad=40,contentWidth=width-pad*2;
+  const height=760,canvas=document.createElement('canvas');
+  canvas.width=width*2; canvas.height=height*2;
+  const ctx=canvas.getContext('2d');
+  if(!ctx) throw new Error('Không thể tạo ảnh trên thiết bị này.');
+  ctx.scale(2,2);
+  const colors={bg:'#FBF6F3',card:'#FFFFFF',ink:'#3D3430',soft:'#8D817B',line:'#EEE5DF',rose:'#AA7180',tiem:'#728EA8',may:'#B58A61',bonus:'#765A12',bonusBg:'#FFF8E4'};
+  const rounded=(x,y,w,h,r,fill,stroke)=>{
+    ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
+    ctx.fillStyle=fill;ctx.fill();if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1;ctx.stroke();}
+  };
+  const text=(value,x,y,size=16,color=colors.ink,weight=400,align='left')=>{ctx.fillStyle=color;ctx.font=weight+' '+size+'px Arial, sans-serif';ctx.textAlign=align;ctx.textBaseline='alphabetic';ctx.fillText(String(value),x,y);};
+  const card=(x,y,w,h)=>rounded(x,y,w,h,16,colors.card,colors.line);
+  ctx.fillStyle=colors.bg;ctx.fillRect(0,0,width,height);
+  text('Bảng Công',pad,65,30,colors.ink,700);
+  text('BÁO CÁO THỐNG KÊ  ·  '+period.label,pad,92,14,colors.soft,500);
+
+  const gap=14,summaryY=116,summaryW=(contentWidth-gap)/2;
+  [[pad,'TỔNG DOANH THU',agg.revenue],[pad+summaryW+gap,'TỔNG HOA HỒNG',agg.commission]].forEach(([x,label,value],index)=>{
+    card(x,summaryY,summaryW,112);text(label,x+20,summaryY+31,12,colors.soft,700);text(fmtVND(value),x+20,summaryY+72,27,index?colors.rose:colors.ink,700);
+    text(agg.count+' dịch vụ trong kỳ',x+20,summaryY+96,12,colors.soft,400);
+  });
+
+  const chartY=summaryY+128;card(pad,chartY,contentWidth,172);
+  const cx=pad+92,cy=chartY+86,r=54,total=agg.commission||0;
+  ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.strokeStyle='#F1E7E1';ctx.lineWidth=13;ctx.stroke();
+  if(total>0){
+    const tiemAngle=Math.PI*2*(agg.tiem.commission/total),mayAngle=Math.PI*2*(agg.may.commission/total);
+    let start=-Math.PI/2;
+    if(tiemAngle>0){ctx.beginPath();ctx.arc(cx,cy,r,start,start+tiemAngle);ctx.strokeStyle=colors.tiem;ctx.lineWidth=13;ctx.lineCap='round';ctx.stroke();start+=tiemAngle;}
+    if(mayAngle>0){ctx.beginPath();ctx.arc(cx,cy,r,start,start+mayAngle);ctx.strokeStyle=colors.may;ctx.lineWidth=13;ctx.lineCap='round';ctx.stroke();}
+  }
+  text(agg.count,cx,cy+2,22,colors.ink,700,'center');text('dịch vụ',cx,cy+21,11,colors.soft,400,'center');
+  const legendX=pad+190;
+  [[colors.tiem,'Tiêm',agg.tiem.count,agg.tiem.commission],[colors.may,'Bắn máy',agg.may.count,agg.may.commission]].forEach((item,index)=>{
+    const y=chartY+62+index*53;rounded(legendX,y-11,10,10,3,item[0]);text(item[1]+' · '+item[2]+' đơn',legendX+22,y,14,colors.ink,700);text(fmtVND(item[3]),legendX+22,y+20,13,colors.soft,400);
+  });
+
+  const breakdownY=chartY+196;text('CHI TIẾT DOANH THU',pad,breakdownY,13,colors.soft,700);
+  const breakdown=[
+    {name:'Dịch vụ tiêm',count:agg.tiem.regularCount,revenue:agg.tiem.regularRevenue,commission:agg.tiem.regularCommission,color:colors.tiem},
+    {name:'Dịch vụ bắn máy',count:agg.may.regularCount,revenue:agg.may.regularRevenue,commission:agg.may.regularCommission,color:colors.may},
+    {name:'★ Bonus doanh thu',count:agg.bonusCount,revenue:agg.bonusRevenue,commission:null,color:'#D5A52E'}
+  ];
+  breakdown.forEach((item,index)=>{
+    const y=breakdownY+15+index*96;card(pad,y,contentWidth,84);
+    rounded(pad+16,y+18,9,9,4,item.color);text(item.name,pad+34,y+28,15,item.name.includes('Bonus')?colors.bonus:colors.ink,700);text(item.count+' đơn',width-pad-20,y+28,12,colors.soft,400,'right');
+    text('Doanh thu',pad+18,y+58,11,colors.soft,400);text(fmtVND(item.revenue),pad+18,y+76,14,item.name.includes('Bonus')?colors.bonus:colors.ink,700);
+    if(item.commission!==null){text('Hoa hồng',width-pad-220,y+58,11,colors.soft,400);text(fmtVND(item.commission),width-pad-220,y+76,14,colors.rose,700);}
+  });
+  return await new Promise((resolve,reject)=>{
+    if(typeof canvas.toBlob==='function') canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('Không thể tạo file ảnh.')),'image/png');
+    else try{const data=canvas.toDataURL('image/png'),raw=atob(data.split(',')[1]),bytes=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);resolve(new Blob([bytes],{type:'image/png'}));}catch(error){reject(error);}
+  });
+}
+
+async function exportStatsImage(){
+  const button=document.querySelector('.stats-export-actions button');
+  if(button) button.disabled=true;
+  try{
+    const blob=await statsImageBlob(),filename=statsExportFilename('png');
+    const file=new File([blob],filename,{type:'image/png'});
+    if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+      await navigator.share({files:[file],title:'Ảnh thống kê Bảng Công'});
+      showToast('Chọn “Lưu hình ảnh” trong bảng chia sẻ để lưu vào Ảnh.');
+    }else{
+      downloadBlob(blob,filename);
+      showToast('Đã xuất ảnh thống kê. Mở ảnh tải xuống để lưu vào thiết bị.');
+    }
+  }catch(error){
+    if(error&&error.name==='AbortError') return;
+    showToast(error.message||'Không thể xuất ảnh thống kê.');
+  }finally{if(button) button.disabled=false;}
+}
+
+function excelXmlEscape(value){return String(value??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');}
+function excelColumnName(index){let name='';while(index){const remainder=(index-1)%26;name=String.fromCharCode(65+remainder)+name;index=Math.floor((index-1)/26);}return name;}
+function excelCell(reference,value,style=0,numeric=false){
+  if(value===null||value===undefined||value==='') return '<c r="'+reference+'"'+(style?' s="'+style+'"':'')+'/>';
+  if(numeric&&Number.isFinite(Number(value))) return '<c r="'+reference+'" t="n"'+(style?' s="'+style+'"':'')+'><v>'+Number(value)+'</v></c>';
+  return '<c r="'+reference+'" t="inlineStr"'+(style?' s="'+style+'"':'')+'><is><t xml:space="preserve">'+excelXmlEscape(value)+'</t></is></c>';
+}
+function excelCrc32(bytes){
+  let crc=0xffffffff;
+  for(const byte of bytes){crc^=byte;for(let bit=0;bit<8;bit++)crc=(crc>>>1)^((crc&1)?0xedb88320:0);}
+  return (crc^0xffffffff)>>>0;
+}
+function excelZip(files){
+  const encoder=new TextEncoder(),localParts=[],centralParts=[];let offset=0;
+  const u16=value=>new Uint8Array([value&255,(value>>>8)&255]);
+  const u32=value=>new Uint8Array([value&255,(value>>>8)&255,(value>>>16)&255,(value>>>24)&255]);
+  const join=parts=>{const length=parts.reduce((sum,part)=>sum+part.length,0),out=new Uint8Array(length);let at=0;parts.forEach(part=>{out.set(part,at);at+=part.length;});return out;};
+  for(const file of files){
+    const name=encoder.encode(file.name),data=encoder.encode(file.content),crc=excelCrc32(data),size=data.length;
+    const local=join([u32(0x04034b50),u16(20),u16(0x0800),u16(0),u16(0),u16(0),u32(crc),u32(size),u32(size),u16(name.length),u16(0),name,data]);
+    const central=join([u32(0x02014b50),u16(20),u16(20),u16(0x0800),u16(0),u16(0),u16(0),u32(crc),u32(size),u32(size),u16(name.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(offset),name]);
+    localParts.push(local);centralParts.push(central);offset+=local.length;
+  }
+  const centralDirectory=join(centralParts),localData=join(localParts);
+  const end=join([u32(0x06054b50),u16(0),u16(0),u16(files.length),u16(files.length),u32(centralDirectory.length),u32(localData.length),u16(0)]);
+  return new Blob([localData,centralDirectory,end],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+
+function createStatsSummarySheet(context,entries){
+  const grouped=new Map();
+  entries.forEach(entry=>{
+    const date=entry.dateKey;
+    if(!grouped.has(date)) grouped.set(date,{tiem:{revenue:0,commission:0,count:0},may:{revenue:0,commission:0,count:0},bonus:{revenue:0,commission:0,count:0}});
+    const day=grouped.get(date),bucket=entry.bonus?'bonus':entry.type==='may'?'may':'tiem';
+    day[bucket].revenue+=Number(entry.amount)||0;
+    day[bucket].commission+=(Number(entry.amount)||0)*entryRate(entry);
+    day[bucket].count++;
+  });
+  const rows=[
+    excelCell('A1','Bảng Công — Tổng hợp doanh thu',1),
+    excelCell('A2','Khoảng thời gian',4)+excelCell('B2',context.label),
+    '',
+    ['Ngày','Loại doanh thu','Doanh thu (đ)','Tổng doanh thu','Hoa hồng (đ)','Tổng hoa hồng'].map((value,index)=>excelCell(excelColumnName(index+1)+'4',value,5)).join('')
+  ];
+  const merges=['A1:F1','B2:F2'];
+  let rowNumber=5;
+  [...grouped.keys()].sort().forEach((date,dayIndex)=>{
+    const day=grouped.get(date),items=[
+      {key:'tiem',label:'Tiêm thường'},
+      {key:'may',label:'Bắn máy'},
+      {key:'bonus',label:'Bonus doanh thu'}
+    ].filter(item=>day[item.key].count>0);
+    if(!items.length) return;
+    const startRow=rowNumber;
+    const totalRevenue=items.reduce((sum,item)=>sum+day[item.key].revenue,0);
+    const totalCommission=Math.round(items.reduce((sum,item)=>sum+day[item.key].commission,0));
+    items.forEach((item,index)=>{
+      const currentRow=rowNumber++,data=day[item.key];
+      const alternate=dayIndex%2===1;
+      const textStyle=alternate?14:12,numberStyle=alternate?15:13,totalStyle=alternate?17:16;
+      const cells=[
+        excelCell('A'+currentRow,index===0?date:'',textStyle),
+        excelCell('B'+currentRow,item.label,textStyle),
+        excelCell('C'+currentRow,data.revenue,numberStyle,true),
+        excelCell('D'+currentRow,index===0?totalRevenue:'',totalStyle,index===0),
+        excelCell('E'+currentRow,Math.round(data.commission),numberStyle,true),
+        excelCell('F'+currentRow,index===0?totalCommission:'',totalStyle,index===0)
+      ];
+      rows.push(cells.join(''));
+    });
+    const endRow=rowNumber-1;
+    if(endRow>startRow) merges.push('A'+startRow+':A'+endRow,'D'+startRow+':D'+endRow,'F'+startRow+':F'+endRow);
+  });
+  const lastRow=Math.max(4,rowNumber-1);
+  return '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><dimension ref="A1:F'+lastRow+'"/><sheetViews><sheetView workbookViewId="0"><pane ySplit="4" topLeftCell="A5" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="22"/><cols><col min="1" max="1" width="14" customWidth="1"/><col min="2" max="2" width="23" customWidth="1"/><col min="3" max="6" width="19" customWidth="1"/></cols><sheetData>'+rows.map((row,index)=>'<row r="'+(index+1)+'">'+row+'</row>').join('')+'</sheetData><mergeCells count="'+merges.length+'">'+merges.map(ref=>'<mergeCell ref="'+ref+'"/>').join('')+'</mergeCells></worksheet>';
+}
+
+function createStatsWorkbook(context,entries){
+  const headings=['Ngày','Giờ','Tên khách hàng','MSKH','Dịch vụ','Loại doanh thu','Doanh thu (đ)','Hoa hồng (đ)'];
+  const rows=[];
+  rows.push(excelCell('A1','Bảng Công — Chi tiết doanh thu',1));
+  rows.push(excelCell('A2','Khoảng thời gian',4)+excelCell('G2',context.label));
+  rows.push(excelCell('A3','Số dịch vụ',4)+excelCell('G3',entries.length,0,true));
+  const totalRevenue=entries.reduce((sum,entry)=>sum+(Number(entry.amount)||0),0);
+  const totalCommission=Math.round(entries.reduce((sum,entry)=>sum+((Number(entry.amount)||0)*entryRate(entry)),0));
+  rows.push(excelCell('A4','Tổng doanh thu',4)+excelCell('G4',totalRevenue,3,true));
+  rows.push(excelCell('A5','Tổng hoa hồng (không gồm bonus)',4)+excelCell('G5',totalCommission,3,true));
+  rows.push('');
+  rows.push(headings.map((heading,index)=>excelCell(excelColumnName(index+1)+'7',heading,2)).join(''));
+  entries.forEach((entry,index)=>{
+    const rowNumber=index+8;
+    const time=Number.isFinite(Number(entry.ts))?new Date(entry.ts).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'}):'';
+    const bonus=!!entry.bonus;
+    const fields=[entry.dateKey,time,entry.customerName||'Khách lẻ',entry.customerCode||'',entry.type==='may'?'Bắn máy':'Tiêm',bonus?'Bonus doanh thu':(entry.type==='may'?'Bắn máy':'Tiêm thường'),Number(entry.amount)||0,bonus?'':Math.round((Number(entry.amount)||0)*entryRate(entry))];
+    rows.push(fields.map((value,column)=>excelCell(excelColumnName(column+1)+rowNumber,value,column>=6?3:0,column>=6&&value!=='')).join(''));
+  });
+  const lastDetail=Math.max(7,entries.length+7),lastRow=entries.length+7;
+  const detailSheet='<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><dimension ref="A1:H'+lastRow+'"/><sheetViews><sheetView workbookViewId="0"><pane ySplit="7" topLeftCell="A8" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="20"/><cols><col min="1" max="1" width="14" customWidth="1"/><col min="2" max="2" width="10" customWidth="1"/><col min="3" max="3" width="24" customWidth="1"/><col min="4" max="4" width="18" customWidth="1"/><col min="5" max="6" width="20" customWidth="1"/><col min="7" max="8" width="20" customWidth="1"/></cols><sheetData>'+rows.map((row,index)=>'<row r="'+(index+1)+'">'+row+'</row>').join('')+'</sheetData><autoFilter ref="A7:H'+lastDetail+'"/><mergeCells count="9"><mergeCell ref="A1:H1"/><mergeCell ref="A2:F2"/><mergeCell ref="G2:H2"/><mergeCell ref="A3:F3"/><mergeCell ref="G3:H3"/><mergeCell ref="A4:F4"/><mergeCell ref="G4:H4"/><mergeCell ref="A5:F5"/><mergeCell ref="G5:H5"/></mergeCells></worksheet>';
+  const summarySheet=createStatsSummarySheet(context,entries);
+  const workbook='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Tổng hợp" sheetId="1" r:id="rId1"/><sheet name="Chi tiết doanh thu" sheetId="2" r:id="rId2"/></sheets></workbook>';
+  const styles='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="4"><font><sz val="11"/><name val="Arial"/></font><font><b/><sz val="15"/><color rgb="FF513D3D"/><name val="Arial"/></font><font><b/><color rgb="FFFFFFFF"/><name val="Arial"/></font><font><b/><sz val="12"/><color rgb="FF513D3D"/><name val="Arial"/></font></fonts><fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFAA7180"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFCE4D6"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF3E8EA"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FF6B4F4F"/></left><right style="thin"><color rgb="FF6B4F4F"/></right><top style="thin"><color rgb="FF6B4F4F"/></top><bottom style="thin"><color rgb="FF6B4F4F"/></bottom><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="18"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0" applyFill="1"/><xf numFmtId="4" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="2" fillId="2" borderId="1" xfId="0" applyFill="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0"><alignment vertical="center"/></xf><xf numFmtId="4" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1"><alignment horizontal="right" vertical="center"/></xf><xf numFmtId="0" fontId="3" fillId="0" borderId="1" xfId="0"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="4" fontId="3" fillId="0" borderId="1" xfId="0" applyNumberFormat="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFill="1"><alignment vertical="center"/></xf><xf numFmtId="4" fontId="0" fillId="3" borderId="1" xfId="0" applyFill="1" applyNumberFormat="1"><alignment horizontal="right" vertical="center"/></xf><xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFill="1"><alignment vertical="center"/></xf><xf numFmtId="4" fontId="0" fillId="3" borderId="1" xfId="0" applyFill="1" applyNumberFormat="1"><alignment horizontal="right" vertical="center"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyFill="1"><alignment vertical="center"/></xf><xf numFmtId="4" fontId="0" fillId="0" borderId="1" xfId="0" applyFill="1" applyNumberFormat="1"><alignment horizontal="right" vertical="center"/></xf><xf numFmtId="4" fontId="3" fillId="3" borderId="1" xfId="0" applyFill="1" applyNumberFormat="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="4" fontId="3" fillId="0" borderId="1" xfId="0" applyFill="1" applyNumberFormat="1"><alignment horizontal="center" vertical="center"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+  return excelZip([
+    {name:'[Content_Types].xml',content:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'},
+    {name:'_rels/.rels',content:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'},
+    {name:'xl/workbook.xml',content:workbook},
+    {name:'xl/_rels/workbook.xml.rels',content:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'},
+    {name:'xl/worksheets/sheet1.xml',content:summarySheet},
+    {name:'xl/worksheets/sheet2.xml',content:detailSheet},
+    {name:'xl/styles.xml',content:styles}
+  ]);
+}
+
+function exportStatsExcel(){
+  try{
+    const {context,rows}=statsExportRows();
+    const blob=createStatsWorkbook(context,rows);
+    downloadBlob(blob,statsExportFilename('xlsx'));
+    showToast('Đã xuất Excel với '+rows.length+' dịch vụ trong '+context.label+'.');
+  }catch(error){showToast(error.message||'Không thể xuất file Excel.');}
+}
+
+function selectType(t){ pendingType=t; pendingBonus=false; render(); }
 
 function updateAmountEntryUI(){
   const amount=pendingDigits ? parseInt(pendingDigits,10) : 0;
@@ -2031,7 +2266,7 @@ function updateAmountEntryUI(){
     valueEl.textContent=amount>0 ? fmtVND(amount) : '0 đ';
     valueEl.classList.toggle('placeholder',amount<=0);
   }
-  if(commissionEl) commissionEl.innerHTML=amount>0 ? 'Hoa hồng dự kiến: '+fmtVND(amount*(pendingType==='tiem'&&pendingBonus?BONUS_RATE:RATES[pendingType])) : '&nbsp;';
+  if(commissionEl) commissionEl.innerHTML=amount>0 ? (pendingBonus?'Bonus doanh thu · không tính hoa hồng':'Hoa hồng dự kiến: '+fmtVND(amount*RATES[pendingType])) : '&nbsp;';
   if(queueButton) queueButton.disabled=amount<=0;
   if(saveButton) saveButton.disabled=amount<=0 && pendingServices.length===0;
 }
@@ -2047,7 +2282,7 @@ function numBack(){
   pendingDigits = pendingDigits.slice(0,-1);
   updateAmountEntryUI();
 }
-function togglePendingBonus(){ if(pendingType!=='tiem') return; pendingBonus=!pendingBonus; render(); }
+function togglePendingBonus(){ pendingBonus=!pendingBonus; render(); }
 
 async function addEntryLegacy(){
   const amount = parseInt(pendingDigits||'0',10);
@@ -2058,7 +2293,7 @@ async function addEntryLegacy(){
     id: 'e'+Date.now()+Math.random().toString(36).slice(2,7),
     type: pendingType,
     amount,
-    bonus: pendingType==='tiem' && pendingBonus,
+    bonus: pendingBonus,
     customerName: pendingCustomerName.trim(),
     customerCode: pendingCustomerCode.trim(),
     ts: Date.now(),
@@ -2081,7 +2316,7 @@ function addPendingService(){
     draftId:'d'+Date.now()+Math.random().toString(36).slice(2,6),
     type:pendingType,
     amount,
-    bonus:pendingType==='tiem' && pendingBonus
+    bonus:pendingBonus
   });
   pendingDigits='';
   pendingBonus=false;
@@ -2096,7 +2331,7 @@ function removePendingService(draftId){
 async function saveVisit(){
   const currentAmount=parseInt(pendingDigits||'0',10);
   const services=pendingServices.slice();
-  if(currentAmount>0) services.push({type:pendingType,amount:currentAmount,bonus:pendingType==='tiem'&&pendingBonus});
+  if(currentAmount>0) services.push({type:pendingType,amount:currentAmount,bonus:pendingBonus});
   if(!services.length) return;
   const key=keyOf(entryDate);
   if(!store[key]) store[key]=[];
@@ -2109,7 +2344,7 @@ async function saveVisit(){
     visitId,
     type:service.type,
     amount:service.amount,
-    bonus:service.type==='tiem'&&!!service.bonus,
+    bonus:!!service.bonus,
     customerName,
     customerCode,
     ts:timestamp+index,
@@ -2176,7 +2411,7 @@ function editEntry(key,id){
   editContext={key,id};
   editSelectedType=entry.type;
   editBonus=!!entry.bonus;
-  updateBonusButton('edit-bonus-toggle',editBonus,editSelectedType==='tiem');
+  updateBonusButton('edit-bonus-toggle',editBonus,true);
   selectEditType(entry.type);
   document.getElementById('edit-amount').value=String(entry.amount);
   document.getElementById('edit-name').value=entry.customerName||'';
@@ -2188,7 +2423,7 @@ function editEntry(key,id){
 
 async function toggleEntryBonus(key,id){
   const entry=(store[key]||[]).find(item=>item.id===id);
-  if(!entry||entry.type!=='tiem') return;
+  if(!entry) return;
   entry.bonus=!entry.bonus;
   entry.updatedAt=Date.now();
   render();
@@ -2208,7 +2443,7 @@ async function saveEditEntry(){
   }
   entry.amount=amount;
   entry.type=editSelectedType;
-  entry.bonus=editSelectedType==='tiem'&&editBonus;
+  entry.bonus=editBonus;
   const customerName=document.getElementById('edit-name').value.trim();
   const customerCode=document.getElementById('edit-code').value.trim();
   const visitId=visitKeyOf(entry);
@@ -2231,8 +2466,7 @@ function updateModalTypeButtons(prefix,type){
 function selectEditType(type){
   editSelectedType=type;
   updateModalTypeButtons('edit',type);
-  if(type!=='tiem') editBonus=false;
-  updateBonusButton('edit-bonus-toggle',editBonus,type==='tiem');
+  updateBonusButton('edit-bonus-toggle',editBonus,true);
 }
 
 function updateBonusButton(id,active,enabled=true){
@@ -2241,17 +2475,16 @@ function updateBonusButton(id,active,enabled=true){
   button.disabled=!enabled;
   button.classList.toggle('active',!!active&&enabled);
   const text=button.querySelector('span:last-child');
-  if(text) text.textContent=active&&enabled?'Bonus đang bật · hoa hồng 2%':'Bonus · áp dụng hoa hồng 2%';
+  if(text) text.textContent=active&&enabled?'Đang bật · tính vào doanh thu, không tính hoa hồng':'Đánh dấu là bonus doanh thu';
 }
-function toggleEditBonus(){ if(editSelectedType!=='tiem') return; editBonus=!editBonus; updateBonusButton('edit-bonus-toggle',editBonus,true); }
+function toggleEditBonus(){ editBonus=!editBonus; updateBonusButton('edit-bonus-toggle',editBonus,true); }
 
 function selectAddServiceType(type){
   addServiceType=type;
   updateModalTypeButtons('add',type);
-  if(type!=='tiem') addServiceBonus=false;
-  updateBonusButton('add-bonus-toggle',addServiceBonus,type==='tiem');
+  updateBonusButton('add-bonus-toggle',addServiceBonus,true);
 }
-function toggleAddServiceBonus(){ if(addServiceType!=='tiem') return; addServiceBonus=!addServiceBonus; updateBonusButton('add-bonus-toggle',addServiceBonus,true); }
+function toggleAddServiceBonus(){ addServiceBonus=!addServiceBonus; updateBonusButton('add-bonus-toggle',addServiceBonus,true); }
 
 function visitEntriesAt(key,visitId){
   return (store[key]||[]).filter(item=>visitKeyOf(item)===visitId);
@@ -2309,7 +2542,7 @@ async function saveAddedService(){
   const entry={
     id:visitId+'_'+(now+existing.length), visitId,
     type:addServiceType, amount,
-    bonus:addServiceType==='tiem'&&addServiceBonus,
+    bonus:addServiceBonus,
     customerName:first.customerName||'', customerCode:first.customerCode||'',
     ts:now+existing.length, updatedAt:now+existing.length
   };
