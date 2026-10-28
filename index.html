@@ -2058,6 +2058,7 @@ function downloadBlob(blob,filename){
 
 async function statsImageBlob(){
   const period=statsPeriodContext(),agg=aggregate(period.dates);
+  if(statsMode==='day') period.label=fmtDate(statsAnchor);
   const width=900,pad=40,contentWidth=width-pad*2;
   const height=760,canvas=document.createElement('canvas');
   canvas.width=width*2; canvas.height=height*2;
