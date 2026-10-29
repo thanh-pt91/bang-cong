@@ -320,6 +320,13 @@
   .summary{
     display:flex; gap:10px; margin-bottom:16px;
   }
+  .stats-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .summary.stats-summary .box{min-width:0;padding:12px 10px;text-align:center}
+  .summary.stats-summary .box.stats-revenue{grid-column:1/-1}
+  .summary.stats-summary .box .k{font-size:10px;line-height:1.25}
+  .summary.stats-summary .box .v{font-size:clamp(12px,4.5vw,18px);white-space:nowrap;overflow:hidden;text-overflow:clip;line-height:1.15;letter-spacing:-.35px}
+  .summary.stats-summary .box .compare{font-size:9px;justify-content:center;width:100%}
+  @media(max-width:360px){.summary.stats-summary{gap:5px}.summary.stats-summary .box{padding:9px 8px}.summary.stats-summary .box .k{font-size:9px}.summary.stats-summary .box .v{font-size:12px;letter-spacing:-.5px}}
   .daily-reconcile-card{display:flex;flex-direction:column;gap:12px;margin:0 0 16px;padding:15px;border:1px solid var(--line);border-radius:16px;background:var(--card);box-shadow:var(--shadow)}
   .daily-reconcile-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
   .daily-reconcile-title{font-size:13px;font-weight:700}
@@ -1428,6 +1435,9 @@ function datesBetween(start,end){
 function fmtVND(n){
   return Math.round(n).toLocaleString('vi-VN') + ' đ';
 }
+function fmtStatsVND(n){
+  return Math.round(Number(n)||0).toLocaleString('vi-VN').replace(/\./g,'.<wbr>')+' đ';
+}
 function fmtBytes(bytes){
   const value=Number(bytes||0);
   if(value<1024) return value+' B';
@@ -1452,8 +1462,11 @@ function serviceCommissionForDay(dateKey){
 }
 function dailyReconciliationForDate(dateKey){ return (store[dateKey]||[]).find(isDailyReconciliation)||null; }
 function dailyReconciliationBonus(entry,dateKey){
+  return Math.max(0,dailyReconciliationDifference(entry,dateKey));
+}
+function dailyReconciliationDifference(entry,dateKey){
   const received=Number(entry&&entry.companyCommission);
-  return Number.isFinite(received)?Math.max(0,Math.round(received-serviceCommissionForDay(dateKey))):Math.max(0,Number(entry&&entry.amount)||0);
+  return Number.isFinite(received)?Math.round(received-serviceCommissionForDay(dateKey)):(Number(entry&&entry.amount)||0);
 }
 async function refreshDailyReconciliation(dateKey,syncRemote=false){
   const record=dailyReconciliationForDate(dateKey);
@@ -1472,7 +1485,7 @@ async function refreshDailyReconciliation(dateKey,syncRemote=false){
 }
 function aggregate(dates){
   const agg = {
-    revenue:0, commission:0, bonusCommission:0, bonusRevenue:0, bonusCount:0, count:0,
+    revenue:0, commission:0, companyCommission:0, bonusCommission:0, bonusRevenue:0, bonusCount:0, count:0,
     tiem:{revenue:0, commission:0, count:0, regularRevenue:0, regularCommission:0, regularCount:0, bonusRevenue:0, bonusCommission:0, bonusCount:0},
     may:{revenue:0, commission:0, count:0, regularRevenue:0, regularCommission:0, regularCount:0, bonusRevenue:0, bonusCommission:0, bonusCount:0}
   };
@@ -1481,6 +1494,7 @@ function aggregate(dates){
     (store[dateKey]||[]).forEach(e=>{
       if(isDailyReconciliation(e)){
         const bonus=dailyReconciliationBonus(e,dateKey);
+        agg.companyCommission+=Number(e.companyCommission)||0;
         agg.revenue+=bonus;
         agg.bonusRevenue+=bonus;
         if(bonus>0) agg.bonusCount+=1;
@@ -1992,7 +2006,7 @@ function renderDailyReconciliationCard(date,reconciliation){
     <div class="daily-reconcile-head"><div><div class="daily-reconcile-title">Đối soát hoa hồng ngày</div><div class="daily-reconcile-state">${reconciliation?'Đã nhập hoa hồng công ty thực trả':'Chưa nhập số đối soát của công ty'}</div></div></div>
     <div class="daily-reconcile-values">
       <div class="daily-reconcile-value"><span>Hoa hồng dịch vụ</span><strong>${fmtVND(serviceCommissionForDay(key))}</strong></div>
-      <div class="daily-reconcile-value"><span>Chênh lệch</span><strong>${fmtVND(reconciliation?dailyReconciliationBonus(reconciliation,key):0)}</strong></div>
+      <div class="daily-reconcile-value"><span>Chênh lệch</span><strong>${fmtVND(reconciliation?dailyReconciliationDifference(reconciliation,key):0)}</strong></div>
       ${reconciliation?`<div class="daily-reconcile-value"><span>Công ty thực trả</span><strong>${fmtVND(reconciliation.companyCommission||0)}</strong></div>`:''}
     </div>
     <button type="button" class="modal-primary" onclick="openDailyReconciliation('${key}')">${reconciliation?'Cập nhật đối soát':'Nhập hoa hồng thực nhận'}</button>
@@ -2052,9 +2066,10 @@ function renderStatsTab(){
       <button onclick="shiftStats(1)">›</button>
     </div>
 
-    <div class="summary">
-      <div class="box"><div class="k">Tổng doanh thu</div><div class="v tnum">${fmtVND(agg.revenue)}</div>${renderComparison(agg.revenue,previousAgg.revenue)}</div>
-      <div class="box hi"><div class="k">Tổng hoa hồng</div><div class="v tnum">${fmtVND(agg.commission)}</div>${renderComparison(agg.commission,previousAgg.commission)}</div>
+    <div class="summary stats-summary">
+      <div class="box hi"><div class="k">Tổng hoa hồng</div><div class="v tnum">${fmtStatsVND(agg.commission)}</div>${renderComparison(agg.commission,previousAgg.commission)}</div>
+      <div class="box hi"><div class="k">Hoa hồng thực nhận</div><div class="v tnum">${fmtStatsVND(agg.companyCommission)}</div>${renderComparison(agg.companyCommission,previousAgg.companyCommission)}</div>
+      <div class="box stats-revenue"><div class="k">Tổng doanh thu</div><div class="v tnum">${fmtStatsVND(agg.revenue)}</div>${renderComparison(agg.revenue,previousAgg.revenue)}</div>
     </div>
     <div class="donutwrap">
       <svg width="100" height="100" viewBox="0 0 100 100">
@@ -2514,7 +2529,7 @@ function updateDailyReconciliationPreview(){
   const received=amountText===''?null:Number(amountText);
   const serviceCommission=serviceCommissionForDay(dailyReconciliationDateKey||keyOf(entryDate));
   const difference=received===null?null:received-serviceCommission;
-  document.getElementById('daily-reconciliation-preview').innerHTML=`<strong>Hoa hồng dịch vụ trong ngày: ${fmtVND(serviceCommission)}</strong>${received===null?'Nhập tổng công ty thực trả để xem bonus.':difference>=0?`Chênh lệch: <strong>${fmtVND(difference)}</strong>`:`Công ty trả thấp hơn hoa hồng dịch vụ ${fmtVND(-difference)}. Bonus sẽ là 0 đ.`}`;
+  document.getElementById('daily-reconciliation-preview').innerHTML=`<strong>Hoa hồng dịch vụ trong ngày: ${fmtVND(serviceCommission)}</strong>${received===null?'Nhập tổng công ty thực trả để xem chênh lệch.':`Chênh lệch: <strong>${fmtVND(difference)}</strong>${difference<0?'<br>Bonus được ghi nhận: 0 đ.':''}`}`;
 }
 
 async function saveDailyReconciliation(){
