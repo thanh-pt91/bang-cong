@@ -320,6 +320,15 @@
   .summary{
     display:flex; gap:10px; margin-bottom:16px;
   }
+  .daily-reconcile-card{display:flex;flex-direction:column;gap:12px;margin:0 0 16px;padding:15px;border:1px solid var(--line);border-radius:16px;background:var(--card);box-shadow:var(--shadow)}
+  .daily-reconcile-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .daily-reconcile-title{font-size:13px;font-weight:700}
+  .daily-reconcile-state{font-size:11px;color:var(--ink-soft)}
+  .daily-reconcile-values{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .daily-reconcile-value{padding:9px 10px;border-radius:11px;background:#F8F4F2;min-width:0}
+  .daily-reconcile-value span{display:block;color:var(--ink-soft);font-size:10.5px;margin-bottom:4px}
+  .daily-reconcile-value strong{font-size:13px;overflow-wrap:anywhere}
+  .daily-reconcile-card .modal-primary{width:100%;min-height:40px}
   .summary .box{
     flex:1; background:var(--card); border-radius:16px; padding:14px;
     box-shadow:var(--shadow);
@@ -662,6 +671,16 @@
     <div class="modal-actions"><button class="modal-cancel" onclick="closeModal('add-service-modal')">Hủy</button><button class="modal-primary" onclick="saveAddedService()">Thêm dịch vụ</button></div>
   </div>
 </div>
+<div class="modal-backdrop" id="daily-reconciliation-modal" onclick="backdropClose(event,'daily-reconciliation-modal')">
+  <div class="app-modal" role="dialog" aria-modal="true" aria-labelledby="daily-reconciliation-title">
+    <div class="modal-icon">₫</div><div class="modal-title" id="daily-reconciliation-title">Đối soát hoa hồng ngày</div>
+    <div class="modal-sub" id="daily-reconciliation-date"></div>
+    <div class="modal-field"><label for="daily-reconciliation-amount">Tổng hoa hồng công ty thực trả</label><input id="daily-reconciliation-amount" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Nhập số tiền công ty trả" oninput="updateDailyReconciliationPreview()"></div>
+    <div class="modal-customer-summary" id="daily-reconciliation-preview"></div>
+    <div class="modal-error" id="daily-reconciliation-error"></div>
+    <div class="modal-actions"><button class="modal-cancel" onclick="closeModal('daily-reconciliation-modal')">Hủy</button><button class="modal-primary" onclick="saveDailyReconciliation()">Lưu đối soát</button></div>
+  </div>
+</div>
 <div class="modal-backdrop" id="move-visit-modal" onclick="backdropClose(event,'move-visit-modal')">
   <div class="app-modal" role="dialog" aria-modal="true" aria-labelledby="move-visit-title">
     <div class="modal-icon">▣</div><div class="modal-title" id="move-visit-title">Đổi ngày thực hiện</div>
@@ -748,6 +767,7 @@
 /* ================= Config ================= */
 const RATES = { tiem: 0.06, may: 0.08 };
 const LEGACY_BONUS_RATE = 0.02;
+const DAILY_RECONCILIATION_MARKER = '__DAILY_COMMISSION_RECONCILIATION__';
 function entryRate(entry){ return entry && entry.bonus ? 0 : RATES[entry.type]||0; }
 const LABELS = { tiem: 'Dịch vụ tiêm', may: 'Dịch vụ bắn máy' };
 const STORE_KEY = 'entries-store';
@@ -800,6 +820,7 @@ let customerSearch = '';
 let customerHistoryContext = null;
 let customerLeaderMetric = 'revenue';
 let pendingServices = [];
+let dailyReconciliationDateKey = '';
 let lastDeleted = null;
 let toastTimer = null;
 let currentUser = null;
@@ -948,9 +969,9 @@ function remoteRow(entry, dateKey){
     id: entry.id,
     work_date: dateKey,
     service_type: entry.type,
-    customer_name: entry.customerName || null,
-    customer_code: entry.customerCode || null,
-    amount: Number(entry.amount),
+    customer_name: entry.dailyReconciliation ? DAILY_RECONCILIATION_MARKER : (entry.customerName || null),
+    customer_code: entry.dailyReconciliation ? String(Number(entry.companyCommission)||0) : (entry.customerCode || null),
+    amount: isDailyReconciliation(entry) ? dailyReconciliationBonus(entry,dateKey) : Number(entry.amount),
     commission_rate: entryRate(entry),
     created_at: new Date(entry.ts || Date.now()).toISOString(),
     updated_at: new Date(entry.updatedAt || Date.now()).toISOString()
@@ -958,11 +979,13 @@ function remoteRow(entry, dateKey){
 }
 
 function rowToEntry(row){
+  const dailyReconciliation=row.customer_name===DAILY_RECONCILIATION_MARKER;
   return {
     id:row.id, visitId:visitKeyOf({id:row.id}), type:row.service_type, amount:Number(row.amount),
-    customerName:row.customer_name||'', customerCode:row.customer_code||'',
+    customerName:dailyReconciliation?'Đối soát hoa hồng cuối ngày':(row.customer_name||''), customerCode:dailyReconciliation?'':(row.customer_code||''),
     ts:new Date(row.created_at).getTime(), updatedAt:new Date(row.updated_at||row.created_at).getTime(),
-    bonus:Math.abs(Number(row.commission_rate))<0.000001 || (row.service_type==='tiem' && Math.abs(Number(row.commission_rate)-LEGACY_BONUS_RATE)<0.000001)
+    bonus:Math.abs(Number(row.commission_rate))<0.000001 || (row.service_type==='tiem' && Math.abs(Number(row.commission_rate)-LEGACY_BONUS_RATE)<0.000001),
+    ...(dailyReconciliation?{dailyReconciliation:true,companyCommission:Number(row.customer_code)||0}:{})
   };
 }
 
@@ -1020,6 +1043,7 @@ async function deleteRemoteEntries(ids){
 
 async function syncEntry(entry, dateKey){
   if(!entry.updatedAt) entry.updatedAt=Date.now();
+  if(!isDailyReconciliation(entry)) await refreshDailyReconciliation(dateKey);
   if(TEST_MODE){ await saveStore(); setSyncState('Thử nghiệm • Không đồng bộ'); return true; }
   const queueKey=activeStoreKey()+':deletes';
   const pending=JSON.parse(localStorage.getItem(queueKey)||'[]');
@@ -1028,12 +1052,14 @@ async function syncEntry(entry, dateKey){
   setSyncState('Đang đồng bộ…');
   try{ await workerJson('/api/entries/upsert',{method:'POST',body:{entries:[remoteRow(entry,dateKey)]}}); }
   catch(error){ console.error(error); setSyncState('Chưa đồng bộ'); return false; }
+  if(!isDailyReconciliation(entry)&&!(await refreshDailyReconciliation(dateKey,true))) return false;
   setSyncState('Đã đồng bộ');
   return true;
 }
 
-async function removeRemoteEntry(id){
-  if(TEST_MODE){ setSyncState('Thử nghiệm • Không đồng bộ'); return true; }
+async function removeRemoteEntry(id,dateKey=''){
+  if(dateKey) await refreshDailyReconciliation(dateKey);
+  if(TEST_MODE){ await saveStore(); setSyncState('Thử nghiệm • Không đồng bộ'); return true; }
   const queueKey=activeStoreKey()+':deletes';
   const pending=JSON.parse(localStorage.getItem(queueKey)||'[]');
   if(!pending.includes(id)) pending.push(id);
@@ -1043,6 +1069,7 @@ async function removeRemoteEntry(id){
   try{ await workerJson('/api/entries/delete',{method:'POST',body:{ids:[id]}}); }
   catch(error){ console.error(error); setSyncState('Chưa đồng bộ'); return false; }
   localStorage.setItem(queueKey,JSON.stringify(pending.filter(item=>item!==id)));
+  if(dateKey) await refreshDailyReconciliation(dateKey,true);
   setSyncState('Đã đồng bộ');
   return true;
 }
@@ -1076,6 +1103,7 @@ async function syncAll(){
   if(TEST_MODE) return setSyncState('Thử nghiệm • Không đồng bộ');
   if(!currentUser || !navigator.onLine) return setSyncState('Đang ngoại tuyến');
   setSyncState('Đang đồng bộ…');
+  for(const dateKey of Object.keys(store||{})) await refreshDailyReconciliation(dateKey);
   const localSnapshot=JSON.parse(JSON.stringify(store||{}));
   const queueKey=activeStoreKey()+':deletes';
   const pendingDeletes=JSON.parse(localStorage.getItem(queueKey)||'[]');
@@ -1106,6 +1134,7 @@ async function syncAll(){
   if(error){ console.error(error); setSyncState('Lỗi đồng bộ'); return; }
   const remoteStore=buildRemoteStore(data);
   store=mergeStoresByFreshness(localSnapshot,remoteStore);
+  for(const dateKey of Object.keys(store||{})) await refreshDailyReconciliation(dateKey,true);
   await saveStore();
   localStorage.removeItem(STORE_KEY);
   render();
@@ -1417,6 +1446,30 @@ function escapeHtml(value){
 function entriesForDate(d){
   return store[keyOf(d)] || [];
 }
+function isDailyReconciliation(entry){ return !!(entry&&entry.dailyReconciliation); }
+function serviceCommissionForDay(dateKey){
+  return Math.round((store[dateKey]||[]).reduce((sum,entry)=>sum+(!isDailyReconciliation(entry)&&!entry.bonus?(Number(entry.amount)||0)*entryRate(entry):0),0));
+}
+function dailyReconciliationForDate(dateKey){ return (store[dateKey]||[]).find(isDailyReconciliation)||null; }
+function dailyReconciliationBonus(entry,dateKey){
+  const received=Number(entry&&entry.companyCommission);
+  return Number.isFinite(received)?Math.max(0,Math.round(received-serviceCommissionForDay(dateKey))):Math.max(0,Number(entry&&entry.amount)||0);
+}
+async function refreshDailyReconciliation(dateKey,syncRemote=false){
+  const record=dailyReconciliationForDate(dateKey);
+  if(!record)return true;
+  const nextAmount=dailyReconciliationBonus(record,dateKey);
+  if(nextAmount!==Number(record.amount)){
+    record.amount=nextAmount;
+    record.updatedAt=Date.now();
+    await saveStore();
+  }
+  if(syncRemote&&!TEST_MODE&&currentUser&&navigator.onLine){
+    try{ await workerJson('/api/entries/upsert',{method:'POST',body:{entries:[remoteRow(record,dateKey)]}}); }
+    catch(error){ console.error('Không đồng bộ được phần đối soát đã tính lại',error); setSyncState('Chưa đồng bộ'); return false; }
+  }
+  return true;
+}
 function aggregate(dates){
   const agg = {
     revenue:0, commission:0, bonusCommission:0, bonusRevenue:0, bonusCount:0, count:0,
@@ -1424,7 +1477,16 @@ function aggregate(dates){
     may:{revenue:0, commission:0, count:0, regularRevenue:0, regularCommission:0, regularCount:0, bonusRevenue:0, bonusCommission:0, bonusCount:0}
   };
   dates.forEach(d=>{
-    (store[keyOf(d)]||[]).forEach(e=>{
+    const dateKey=keyOf(d);
+    (store[dateKey]||[]).forEach(e=>{
+      if(isDailyReconciliation(e)){
+        const bonus=dailyReconciliationBonus(e,dateKey);
+        agg.revenue+=bonus;
+        agg.bonusRevenue+=bonus;
+        if(bonus>0) agg.bonusCount+=1;
+        agg.tiem.bonusRevenue+=bonus;
+        return;
+      }
       const c = e.amount * entryRate(e);
       agg.revenue += e.amount;
       agg.commission += c;
@@ -1577,7 +1639,7 @@ function renderAdminTab(){
   const userCards=users.map(user=>{
     const details=[...user.days.entries()].sort((a,b)=>b[0].localeCompare(a[0])).map(([date,day])=>`<div class="admin-day-row"><span>${fmtDate(new Date(date+'T12:00:00'))} · ${day.count} dịch vụ</span><strong>${fmtVND(day.revenue)}</strong><strong>${fmtVND(day.commission)}</strong></div>`).join('');
     const displayName=user.name||('Tài khoản '+user.id.slice(0,8));
-    return `<article class="admin-user-card"><div class="admin-user-head"><div><div class="admin-user-name">${escapeHtml(displayName)}</div><div class="admin-user-id">${escapeHtml(user.id)}</div></div><div><div class="admin-user-total">${fmtVND(user.revenue)}</div><div class="admin-user-commission">Hoa hồng ${fmtVND(user.commission)}</div></div></div><div class="admin-service-splits"><div class="admin-service-split"><span>Tiêm thường</span><strong>${fmtVND(user.tiem)}</strong></div><div class="admin-service-split"><span>Bắn máy</span><strong>${fmtVND(user.may)}</strong></div><div class="admin-service-split"><span>Bonus doanh thu</span><strong>${fmtVND(user.bonus)}</strong></div></div><details class="admin-user-details"><summary>Chi tiết theo ngày (${user.days.size} ngày)</summary>${details}</details></article>`;
+    return `<article class="admin-user-card"><div class="admin-user-head"><div><div class="admin-user-name">${escapeHtml(displayName)}</div><div class="admin-user-id">${escapeHtml(user.id)}</div></div><div><div class="admin-user-total">${fmtVND(user.revenue)}</div><div class="admin-user-commission">Hoa hồng ${fmtVND(user.commission)}</div></div></div><div class="admin-service-splits"><div class="admin-service-split"><span>Tiêm thường</span><strong>${fmtVND(user.tiem)}</strong></div><div class="admin-service-split"><span>Bắn máy</span><strong>${fmtVND(user.may)}</strong></div><div class="admin-service-split"><span>Bonus</span><strong>${fmtVND(user.bonus)}</strong></div></div><details class="admin-user-details"><summary>Chi tiết theo ngày (${user.days.size} ngày)</summary>${details}</details></article>`;
   }).join('');
   return `<section class="admin-page"><header class="admin-page-head"><div class="admin-page-title">Quản trị doanh thu</div><div class="admin-page-sub">Theo dõi doanh thu và hoa hồng của từng tài khoản trong khoảng ngày đã chọn.</div></header><div class="admin-filter"><div><label for="admin-from">Từ ngày</label><input id="admin-from" type="date" value="${escapeHtml(adminFrom)}" onchange="adminFrom=this.value"></div><div><label for="admin-to">Đến ngày</label><input id="admin-to" type="date" value="${escapeHtml(adminTo)}" onchange="adminTo=this.value"></div><button type="button" onclick="loadAdminRevenue()" ${adminLoading?'disabled':''}>${adminLoading?'Đang tải…':'Xem doanh thu'}</button></div>${TEST_MODE?'<div class="admin-page-sub" style="margin:0 2px 12px">Bản demo · số liệu minh họa</div>':''}<div class="admin-kpis"><div class="admin-kpi"><div class="admin-kpi-label">Tài khoản có doanh thu</div><div class="admin-kpi-value">${users.length}</div></div><div class="admin-kpi"><div class="admin-kpi-label">Tổng doanh thu</div><div class="admin-kpi-value">${fmtVND(totalRevenue)}</div></div><div class="admin-kpi"><div class="admin-kpi-label">Tổng hoa hồng</div><div class="admin-kpi-value">${fmtVND(totalCommission)}</div></div></div>${adminError?`<div class="admin-error">${escapeHtml(adminError)}</div>`:users.length?`<div class="admin-user-list">${userCards}</div>`:`<div class="admin-empty">${adminLoading?'Đang tải số liệu…':'Không có doanh thu trong khoảng ngày này.'}</div>`}</section>`;
 }
@@ -1640,7 +1702,7 @@ function customerSearchMatches(){
   if(!query) return [];
   const matches=[];
   Object.keys(store).forEach(key=>{
-    groupVisits(store[key]||[]).forEach(visit=>{
+    groupVisits((store[key]||[]).filter(entry=>!isDailyReconciliation(entry))).forEach(visit=>{
       const first=visit.entries[0]||{};
       const code=normalizeCustomerSearch(first.customerCode);
       const name=normalizeCustomerSearch(first.customerName);
@@ -1802,14 +1864,15 @@ function renderCustomerHistoryTab(){
       const items=byDate[dateKey],dayTotal=items.reduce((sum,entry)=>sum+(Number(entry.amount)||0),0);
       const focused=dateKey===focusDate;
       return `<div class="customer-history-date">${WD[date.getDay()]} · ${fmtDate(date)}${focused?' · ĐÃ CHỌN':''} · ${items.length} dịch vụ · ${fmtVND(dayTotal)}</div>
-        ${items.map(entry=>`<div class="customer-search-result"><span class="dot ${entry.type}"></span><div class="customer-search-info"><div class="customer-search-name">${LABELS[entry.type]}${entry.bonus?' · ★ Bonus doanh thu':''}</div><div class="customer-search-detail">${entry.bonus?'Doanh thu bonus':'Hoa hồng '+Math.round(entryRate(entry)*100)+'% · '+fmtVND(entry.amount*entryRate(entry))}</div></div><div class="customer-search-money"><strong>${fmtVND(entry.amount)}</strong></div></div>`).join('')}`;
+        ${items.map(entry=>`<div class="customer-search-result"><span class="dot ${entry.type}"></span><div class="customer-search-info"><div class="customer-search-name">${LABELS[entry.type]}${entry.bonus?' · ★ Bonus':''}</div><div class="customer-search-detail">${entry.bonus?'Doanh thu bonus':'Hoa hồng '+Math.round(entryRate(entry)*100)+'% · '+fmtVND(entry.amount*entryRate(entry))}</div></div><div class="customer-search-money"><strong>${fmtVND(entry.amount)}</strong></div></div>`).join('')}`;
     }).join(''):'<div class="customer-search-empty">Chưa có ngày làm dịch vụ cho khách này.</div>'}
   </div>`;
 }
 
 function renderEntryTab(){
   const list = entriesForDate(entryDate).slice().sort((a,b)=>b.ts-a.ts);
-  const visits = groupVisits(list);
+  const serviceEntries=list.filter(entry=>!isDailyReconciliation(entry));
+  const visits = groupVisits(serviceEntries);
   const agg = aggregate([entryDate]);
   const preview = pendingDigits ? parseInt(pendingDigits,10) : 0;
   const visitRevenue = pendingServices.reduce((sum,item)=>sum+item.amount,0);
@@ -1848,7 +1911,7 @@ function renderEntryTab(){
     <div class="entrycard">
       <div class="amount-display">
         <button class="bonus-toggle ${pendingBonus?'active':''}" type="button" onclick="togglePendingBonus()">
-          <span class="star">${pendingBonus?'★':'☆'}</span><span>Bonus doanh thu</span>
+          <span class="star">${pendingBonus?'★':'☆'}</span><span>Bonus</span>
         </button>
         <div class="val ${pendingDigits?'':'placeholder'} tnum">${pendingDigits ? fmtVND(preview) : '0 đ'}</div>
       </div>
@@ -1885,7 +1948,7 @@ function renderEntryTab(){
       <div class="box hi"><div class="k">Hoa hồng ngày</div><div class="v tnum">${fmtVND(agg.commission)}</div></div>
     </div>
 
-    <div id="daily-list-title" class="listtitle">Danh sách ${sameDay(entryDate,new Date())?'hôm nay':fmtDate(entryDate)} (${visits.length} lượt · ${list.length} dịch vụ)</div>
+    <div id="daily-list-title" class="listtitle">Danh sách ${sameDay(entryDate,new Date())?'hôm nay':fmtDate(entryDate)} (${visits.length} lượt · ${serviceEntries.length} dịch vụ)</div>
     ${visits.length?`<div class="daily-bill-check">Bill trong ngày: <strong>${dayBillsChecked}/${visits.length} đã check</strong></div>`:''}
     ${visits.length===0 ? `
       <div class="empty"><div class="ic">🗒️</div>Chưa có đơn nào trong ngày này.<br>Nhập số tiền phía trên để bắt đầu.</div>
@@ -1923,6 +1986,19 @@ function renderEntryTab(){
   `;
 }
 
+function renderDailyReconciliationCard(date,reconciliation){
+  const key=keyOf(date);
+  return `<section class="daily-reconcile-card">
+    <div class="daily-reconcile-head"><div><div class="daily-reconcile-title">Đối soát hoa hồng ngày</div><div class="daily-reconcile-state">${reconciliation?'Đã nhập hoa hồng công ty thực trả':'Chưa nhập số đối soát của công ty'}</div></div></div>
+    <div class="daily-reconcile-values">
+      <div class="daily-reconcile-value"><span>Hoa hồng dịch vụ</span><strong>${fmtVND(serviceCommissionForDay(key))}</strong></div>
+      <div class="daily-reconcile-value"><span>Chênh lệch</span><strong>${fmtVND(reconciliation?dailyReconciliationBonus(reconciliation,key):0)}</strong></div>
+      ${reconciliation?`<div class="daily-reconcile-value"><span>Công ty thực trả</span><strong>${fmtVND(reconciliation.companyCommission||0)}</strong></div>`:''}
+    </div>
+    <button type="button" class="modal-primary" onclick="openDailyReconciliation('${key}')">${reconciliation?'Cập nhật đối soát':'Nhập hoa hồng thực nhận'}</button>
+  </section>`;
+}
+
 function renderStatsTab(){
   let dates, label, sublabel;
   if(statsMode==='day'){
@@ -1946,6 +2022,7 @@ function renderStatsTab(){
     sublabel=dates.length+' ngày trong năm';
   }
   const agg = aggregate(dates);
+  const dayReconciliation=statsMode==='day'?dailyReconciliationForDate(keyOf(statsAnchor)):null;
   const previousAgg = aggregate(previousStatsDates());
   const total = agg.commission || 1;
   const tiemPct = agg.tiem.commission/total;
@@ -2021,13 +2098,14 @@ function renderStatsTab(){
         <span class="chevron">›</span>
       </div>
       <div class="bd-row bonus-stat clickable" role="button" tabindex="0" onclick="openStatsDetail('bonus')">
-        <div class="hd"><span class="name">★ Bonus doanh thu</span><span class="rate">${agg.bonusCount} đơn</span></div>
+        <div class="hd"><span class="name">★ Bonus</span><span class="rate">${agg.bonusCount} đơn</span></div>
         <div class="stats">
           <div class="c"><div class="k">Doanh thu</div><div class="v tnum">${fmtVND(agg.bonusRevenue)}</div></div>
         </div>
         <span class="chevron">›</span>
       </div>
     </div>
+    ${statsMode==='day'?renderDailyReconciliationCard(statsAnchor,dayReconciliation):''}
     <div class="stats-export-actions">
       <button type="button" onclick="exportStatsImage()">▧ Xuất ảnh thống kê</button>
       <button type="button" onclick="exportStatsExcel()">▤ Xuất Excel doanh thu</button>
@@ -2105,11 +2183,11 @@ function renderStatsDetail(){
   const detailMode=statsDetailType;
   const bonusFilter=detailMode==='bonus'?true:(detailMode==='tiem_regular'||detailMode==='may_regular'?false:null);
   const type=detailMode==='bonus'?null:(detailMode.startsWith('tiem_')?'tiem':detailMode==='may_regular'?'may':detailMode);
-  const title=detailMode==='bonus'?'Bonus doanh thu':type==='tiem'?(bonusFilter===false?'Tiêm thường':'Dịch vụ tiêm'):type==='may'?'Dịch vụ bắn máy':LABELS[type];
+  const title=detailMode==='bonus'?'Bonus':type==='tiem'?(bonusFilter===false?'Tiêm thường':'Dịch vụ tiêm'):type==='may'?'Dịch vụ bắn máy':LABELS[type];
   const items=[];
   context.dates.forEach(date=>{
     const dateKey=keyOf(date);
-    (store[dateKey]||[]).filter(entry=>(!type||entry.type===type)&&(bonusFilter===null||!!entry.bonus===bonusFilter)).forEach(entry=>items.push({...entry,dateKey,date:new Date(date)}));
+    (store[dateKey]||[]).filter(entry=>(!type||entry.type===type)&&(bonusFilter===null||!!entry.bonus===bonusFilter)).forEach(entry=>items.push({...entry,amount:isDailyReconciliation(entry)?dailyReconciliationBonus(entry,dateKey):entry.amount,dateKey,date:new Date(date)}));
   });
   items.sort((a,b)=>b.dateKey.localeCompare(a.dateKey)||(b.ts||0)-(a.ts||0));
   const revenue=items.reduce((sum,item)=>sum+item.amount,0);
@@ -2133,7 +2211,7 @@ function renderStatsDetail(){
       return `<div class="detail-day-title">${WD[date.getDay()]} · ${fmtDate(date)} (${grouped[dateKey].length})</div>
       ${grouped[dateKey].map(entry=>`<div class="detail-entry">
         <span class="dot ${type}"></span>
-        <div class="detail-entry-info"><div class="detail-entry-name">${entry.customerName ? escapeHtml(entry.customerName) : 'Khách lẻ'} ${entry.bonus?'<span class="bonus-pill">★ Bonus doanh thu</span>':''}</div><div class="detail-entry-code">${entry.customerCode ? 'MSKH: '+escapeHtml(entry.customerCode) : LABELS[entry.type]}</div></div>
+        <div class="detail-entry-info"><div class="detail-entry-name">${entry.customerName ? escapeHtml(entry.customerName) : 'Khách lẻ'} ${entry.bonus?'<span class="bonus-pill">★ Bonus</span>':''}</div><div class="detail-entry-code">${entry.customerCode ? 'MSKH: '+escapeHtml(entry.customerCode) : LABELS[entry.type]}</div></div>
         <div class="detail-entry-money"><div class="detail-entry-amount">${fmtVND(entry.amount)}</div>${entry.bonus?'':`<div class="detail-entry-com">+ ${fmtVND(entry.amount*entryRate(entry))}</div>`}</div>
       </div>`).join('')}`;
     }).join('')}
@@ -2168,7 +2246,7 @@ function statsExportRows(){
   const rows=[];
   context.dates.forEach(date=>{
     const dateKey=keyOf(date);
-    (store[dateKey]||[]).forEach(entry=>rows.push({...entry,dateKey}));
+    (store[dateKey]||[]).forEach(entry=>rows.push({...entry,amount:isDailyReconciliation(entry)?dailyReconciliationBonus(entry,dateKey):entry.amount,dateKey}));
   });
   rows.sort((a,b)=>a.dateKey.localeCompare(b.dateKey)||(a.ts||0)-(b.ts||0));
   return {context,rows};
@@ -2233,7 +2311,7 @@ async function statsImageBlob(){
   const breakdown=[
     {name:'Dịch vụ tiêm',count:agg.tiem.regularCount,revenue:agg.tiem.regularRevenue,commission:agg.tiem.regularCommission,color:colors.tiem},
     {name:'Dịch vụ bắn máy',count:agg.may.regularCount,revenue:agg.may.regularRevenue,commission:agg.may.regularCommission,color:colors.may},
-    {name:'★ Bonus doanh thu',count:agg.bonusCount,revenue:agg.bonusRevenue,commission:null,color:'#D5A52E'}
+    {name:'★ Bonus',count:agg.bonusCount,revenue:agg.bonusRevenue,commission:null,color:'#D5A52E'}
   ];
   breakdown.forEach((item,index)=>{
     const y=breakdownY+15+index*96;card(pad,y,contentWidth,84);
@@ -2300,8 +2378,9 @@ function createStatsSummarySheet(context,entries){
     const date=entry.dateKey;
     if(!grouped.has(date)) grouped.set(date,{tiem:{revenue:0,commission:0,count:0},may:{revenue:0,commission:0,count:0},bonus:{revenue:0,commission:0,count:0}});
     const day=grouped.get(date),bucket=entry.bonus?'bonus':entry.type==='may'?'may':'tiem';
-    day[bucket].revenue+=Number(entry.amount)||0;
-    day[bucket].commission+=(Number(entry.amount)||0)*entryRate(entry);
+    const amount=Number(entry.amount)||0;
+    day[bucket].revenue+=entry.bonus?0:amount;
+    day[bucket].commission+=entry.bonus?amount:amount*entryRate(entry);
     day[bucket].count++;
   });
   const rows=[
@@ -2316,7 +2395,7 @@ function createStatsSummarySheet(context,entries){
     const day=grouped.get(date),items=[
       {key:'tiem',label:'Tiêm thường'},
       {key:'may',label:'Bắn máy'},
-      {key:'bonus',label:'Bonus doanh thu'}
+      {key:'bonus',label:'Bonus'}
     ].filter(item=>day[item.key].count>0);
     if(!items.length) return;
     const startRow=rowNumber;
@@ -2348,18 +2427,18 @@ function createStatsWorkbook(context,entries){
   const rows=[];
   rows.push(excelCell('A1','Bảng Công — Chi tiết doanh thu',1));
   rows.push(excelCell('A2','Khoảng thời gian',4)+excelCell('G2',context.label));
-  rows.push(excelCell('A3','Số dịch vụ',4)+excelCell('G3',entries.length,0,true));
-  const totalRevenue=entries.reduce((sum,entry)=>sum+(Number(entry.amount)||0),0);
-  const totalCommission=Math.round(entries.reduce((sum,entry)=>sum+((Number(entry.amount)||0)*entryRate(entry)),0));
+  rows.push(excelCell('A3','Số dịch vụ',4)+excelCell('G3',entries.filter(entry=>!entry.bonus).length,0,true));
+  const totalRevenue=entries.reduce((sum,entry)=>sum+(!entry.bonus?(Number(entry.amount)||0):0),0);
+  const totalCommission=Math.round(entries.reduce((sum,entry)=>sum+(entry.bonus?(Number(entry.amount)||0):((Number(entry.amount)||0)*entryRate(entry))),0));
   rows.push(excelCell('A4','Tổng doanh thu',4)+excelCell('G4',totalRevenue,3,true));
-  rows.push(excelCell('A5','Tổng hoa hồng (không gồm bonus)',4)+excelCell('G5',totalCommission,3,true));
+  rows.push(excelCell('A5','Tổng hoa hồng',4)+excelCell('G5',totalCommission,3,true));
   rows.push('');
   rows.push(headings.map((heading,index)=>excelCell(excelColumnName(index+1)+'7',heading,2)).join(''));
   entries.forEach((entry,index)=>{
     const rowNumber=index+8;
     const time=Number.isFinite(Number(entry.ts))?new Date(entry.ts).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'}):'';
     const bonus=!!entry.bonus;
-    const fields=[entry.dateKey,time,entry.customerName||'Khách lẻ',entry.customerCode||'',entry.type==='may'?'Bắn máy':'Tiêm',bonus?'Bonus doanh thu':(entry.type==='may'?'Bắn máy':'Tiêm thường'),Number(entry.amount)||0,bonus?'':Math.round((Number(entry.amount)||0)*entryRate(entry))];
+    const fields=[entry.dateKey,entry.dailyReconciliation?'':time,entry.dailyReconciliation?'':(entry.customerName||'Khách lẻ'),entry.customerCode||'',entry.dailyReconciliation?'':(entry.type==='may'?'Bắn máy':'Tiêm'),bonus?'Bonus':(entry.type==='may'?'Bắn máy':'Tiêm thường'),bonus?0:(Number(entry.amount)||0),bonus?Math.round(Number(entry.amount)||0):Math.round((Number(entry.amount)||0)*entryRate(entry))];
     rows.push(fields.map((value,column)=>excelCell(excelColumnName(column+1)+rowNumber,value,column>=6?3:0,column>=6&&value!=='')).join(''));
   });
   const lastDetail=Math.max(7,entries.length+7),lastRow=entries.length+7;
@@ -2399,7 +2478,7 @@ function updateAmountEntryUI(){
     valueEl.textContent=amount>0 ? fmtVND(amount) : '0 đ';
     valueEl.classList.toggle('placeholder',amount<=0);
   }
-  if(commissionEl) commissionEl.innerHTML=amount>0 ? (pendingBonus?'Bonus doanh thu · không tính hoa hồng':'Hoa hồng dự kiến: '+fmtVND(amount*RATES[pendingType])) : '&nbsp;';
+  if(commissionEl) commissionEl.innerHTML=amount>0 ? (pendingBonus?'Bonus · không tính hoa hồng':'Hoa hồng dự kiến: '+fmtVND(amount*RATES[pendingType])) : '&nbsp;';
   if(queueButton) queueButton.disabled=amount<=0;
   if(saveButton) saveButton.disabled=amount<=0 && pendingServices.length===0;
 }
@@ -2416,6 +2495,49 @@ function numBack(){
   updateAmountEntryUI();
 }
 function togglePendingBonus(){ pendingBonus=!pendingBonus; render(); }
+
+function openDailyReconciliation(dateKey=keyOf(statsAnchor)){
+  dailyReconciliationDateKey=dateKey;
+  const record=dailyReconciliationForDate(dailyReconciliationDateKey);
+  const [year,month,day]=dateKey.split('-').map(Number);
+  const date=new Date(year,month-1,day);
+  document.getElementById('daily-reconciliation-date').textContent='Ngày '+fmtDate(date)+' · đối soát tổng hoa hồng của ngày này.';
+  document.getElementById('daily-reconciliation-amount').value=record?String(record.companyCommission||0):'';
+  document.getElementById('daily-reconciliation-error').textContent='';
+  updateDailyReconciliationPreview();
+  openModal('daily-reconciliation-modal');
+  setTimeout(()=>document.getElementById('daily-reconciliation-amount').focus(),220);
+}
+
+function updateDailyReconciliationPreview(){
+  const amountText=document.getElementById('daily-reconciliation-amount').value.replace(/[^0-9]/g,'');
+  const received=amountText===''?null:Number(amountText);
+  const serviceCommission=serviceCommissionForDay(dailyReconciliationDateKey||keyOf(entryDate));
+  const difference=received===null?null:received-serviceCommission;
+  document.getElementById('daily-reconciliation-preview').innerHTML=`<strong>Hoa hồng dịch vụ trong ngày: ${fmtVND(serviceCommission)}</strong>${received===null?'Nhập tổng công ty thực trả để xem bonus.':difference>=0?`Chênh lệch: <strong>${fmtVND(difference)}</strong>`:`Công ty trả thấp hơn hoa hồng dịch vụ ${fmtVND(-difference)}. Bonus sẽ là 0 đ.`}`;
+}
+
+async function saveDailyReconciliation(){
+  const amountText=document.getElementById('daily-reconciliation-amount').value.replace(/[^0-9]/g,'');
+  if(amountText===''){
+    document.getElementById('daily-reconciliation-error').textContent='Vui lòng nhập tổng hoa hồng công ty thực trả.';
+    return;
+  }
+  const key=dailyReconciliationDateKey||keyOf(entryDate);
+  const received=Number(amountText);
+  const bonus=Math.max(0,received-serviceCommissionForDay(key));
+  const previous=dailyReconciliationForDate(key);
+  const timestamp=Date.now();
+  const id=previous?.id||'daily-reconcile-'+(currentUser?.id||'local')+'-'+key;
+  const record={id,type:'tiem',amount:bonus,bonus:true,dailyReconciliation:true,companyCommission:received,customerName:'Đối soát hoa hồng cuối ngày',customerCode:'',ts:previous?.ts||timestamp,updatedAt:timestamp};
+  store[key]=(store[key]||[]).filter(entry=>!isDailyReconciliation(entry));
+  store[key].push(record);
+  closeModal('daily-reconciliation-modal');
+  render();
+  await saveStore();
+  await syncEntry(record,key);
+  showToast('Đã lưu đối soát. Chênh lệch: '+fmtVND(bonus));
+}
 
 async function addEntryLegacy(){
   const amount = parseInt(pendingDigits||'0',10);
@@ -2530,7 +2652,7 @@ async function deleteEntryLegacy(key, id){
   arr.splice(idx,1);
   render();
   await saveStore();
-  await removeRemoteEntry(id);
+  await removeRemoteEntry(id,key);
   showToast('Đã xóa đơn');
 }
 
@@ -2686,7 +2808,7 @@ async function saveAddedService(){
   render();
   await saveStore();
   if(originalVisitId!==visitId){ await rekeyBill(originalVisitId,visitId); render(); }
-  if(oldIds.length) await Promise.all(oldIds.map(id=>removeRemoteEntry(id)));
+  if(oldIds.length) await Promise.all(oldIds.map(id=>removeRemoteEntry(id,key)));
   await Promise.all(entriesToSync.map(item=>syncEntry(item,key)));
   showToast('Đã thêm dịch vụ');
 }
@@ -2728,6 +2850,7 @@ async function saveMovedVisit(){
   closeModal('move-visit-modal');
   render();
   await saveStore();
+  await refreshDailyReconciliation(key,true);
   await updateBillWorkDate(visitId,targetKey);
   await Promise.all(entries.map(item=>syncEntry(item,targetKey)));
   showToast('Đã chuyển khách sang ngày mới');
@@ -3191,7 +3314,7 @@ async function confirmDeleteEntry(){
   store[key]=arr.filter(item=>!ids.includes(item.id));
   deleteContext=null;
   closeModal('delete-modal');
-  render(); await saveStore(); await Promise.all(ids.map(id=>removeRemoteEntry(id)));
+  render(); await saveStore(); await Promise.all(ids.map(id=>removeRemoteEntry(id,key)));
   showToast(single?'Đã xóa dịch vụ':'Đã xóa lượt khách');
 }
 
